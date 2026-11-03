@@ -169,14 +169,14 @@
             }
         }
 
-        // Enviar datos verificando duplicados en Supabase
+        // Enviar datos validando duplicados por número de documento o nombre
         document.getElementById('registroForm').addEventListener('submit', async function(e) {
             e.preventDefault();
             const nombre = document.getElementById('nombre').value;
             const tipo_doc = document.getElementById('tipoDoc').value;
-            const num_doc = document.getElementById('numDoc').value;
-            const telefono = document.getElementById('telefono').value;
-            const correo = document.getElementById('correo').value;
+            const num_doc = document.getElementById('numDoc').value.trim();
+            const telefono = document.getElementById('telefono').value.trim();
+            const correo = document.getElementById('correo').value.trim();
             const msg = document.getElementById('mensaje');
 
             if (!nombre || !tipo_doc || !num_doc || !telefono || !correo) {
@@ -184,32 +184,40 @@
                 return;
             }
 
-            // 1. Verificar si ya existe un registro con este nombre en la base de datos
-            const { data: existente, error: errorCheck } = await _supabase
+            // 1. Verificar si este número de documento ya está registrado en la base de datos
+            const { data: docExistente, error: errorDoc } = await _supabase
+                .from('Estudiantes')
+                .select('*')
+                .eq('num_doc', num_doc)
+                .maybeSingle();
+
+            if (docExistente) {
+                msg.className = "mt-4 p-3 rounded-lg text-sm bg-amber-100 text-amber-800 block";
+                msg.textContent = `⚠️ Este número de documento (${num_doc}) ya se encuentra registrado en el sistema.`;
+                return;
+            }
+
+            // 2. Verificar si el nombre seleccionado ya tiene datos guardados
+            const { data: nombreExistente, error: errorNombre } = await _supabase
                 .from('Estudiantes')
                 .select('*')
                 .eq('nombre', nombre)
                 .maybeSingle();
 
-            if (errorCheck) {
-                console.error(errorCheck);
-            }
-
-            // Si ya tiene datos registrados (por ejemplo, el campo num_doc no está vacío)
-            if (existente && existente.num_doc) {
+            if (nombreExistente && nombreExistente.num_doc) {
                 msg.className = "mt-4 p-3 rounded-lg text-sm bg-amber-100 text-amber-800 block";
-                msg.textContent = `⚠️ Este nombre ya cuenta con un registro guardado en el sistema.`;
+                msg.textContent = `⚠️ El estudiante "${nombre}" ya cuenta con un registro completado.`;
                 return;
             }
 
-            // 2. Si no existe o estaba vacío, procedemos a insertar
+            // 3. Insertar el nuevo registro limpio
             const { error } = await _supabase
                 .from('Estudiantes')
-                .upsert({ nombre, tipo_doc, num_doc, telefono, correo });
+                .insert({ nombre, tipo_doc, num_doc, telefono, correo });
 
             if (error) {
                 msg.className = "mt-4 p-3 rounded-lg text-sm bg-red-100 text-red-800 block";
-                msg.textContent = "Hubo un error al guardar los datos. Revisa la consola.";
+                msg.textContent = "Hubo un error al guardar los datos. Es posible que el documento ya exista.";
                 console.error(error);
             } else {
                 msg.className = "mt-4 p-3 rounded-lg text-sm bg-emerald-100 text-emerald-800 block";
