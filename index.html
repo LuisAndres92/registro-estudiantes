@@ -57,7 +57,7 @@
             <div id="block-correo" class="hidden">
                 <label class="block text-sm font-semibold text-slate-700 mb-1">5. Correo Electrónico:</label>
                 <input type="email" id="correo" class="w-full border border-slate-300 rounded-lg p-3 text-slate-800 focus:ring-2 focus:ring-blue-500" placeholder="correo@ejemplo.com">
-                <button type="submit" id="btnGuardar" class="mt-4 w-full bg-emerald-600 text-white font-medium py-3 rounded-lg hover:bg-emerald-700 transition">✅ Guardar Mis Datos</button>
+                <button type="submit" id="btnGuardar" class="mt-4 w-full bg-emerald-600 text-white font-medium py-3 rounded-lg hover:bg-emerald-700 transition">✅ Registrar Mis Datos</button>
             </div>
         </form>
 
@@ -104,18 +104,18 @@
                 <hr class="border-blue-200">
 
                 <div>
-                    <label class="block font-semibold text-slate-700 mb-1 text-xs">📂 Cargar Listado de Estudiantes (Excel):</label>
+                    <label class="block font-semibold text-slate-700 mb-1 text-xs">📂 Cargar Listado de Estudiantes (Excel de Nombres):</label>
                     <input type="file" id="excelFile" accept=".xlsx, .xls, .csv" class="text-xs text-slate-600 mb-2">
-                    <button onclick="cargarListadoExcel()" class="bg-indigo-600 text-white font-medium px-3 py-1.5 rounded hover:bg-indigo-700 transition text-xs">📤 Subir Nombres al Curso Actual</button>
+                    <button onclick="cargarListadoExcel()" class="bg-indigo-600 text-white font-medium px-3 py-1.5 rounded hover:bg-indigo-700 transition text-xs">📤 Cargar Nombres al ComboBox</button>
                 </div>
             </div>
 
             <!-- Listado y Exportación -->
             <div>
                 <div class="flex justify-between items-center mb-3">
-                    <h3 class="text-sm font-bold text-slate-800">Registros del Curso Actual (Nube)</h3>
+                    <h3 class="text-sm font-bold text-slate-800">Estudiantes Registrados (Nube)</h3>
                     <div class="flex gap-2">
-                        <button onclick="descargarExcel()" class="bg-emerald-600 text-white font-medium px-3 py-1.5 rounded-lg hover:bg-emerald-700 transition text-xs">📥 Descargar Excel</button>
+                        <button onclick="descargarExcel()" class="bg-emerald-600 text-white font-medium px-3 py-1.5 rounded-lg hover:bg-emerald-700 transition text-xs">📥 Descargar Excel Consolidado</button>
                         <button onclick="cerrarPanel()" class="bg-red-600 text-white font-medium px-3 py-1.5 rounded-lg hover:bg-red-700 transition text-xs">Bloquear</button>
                     </div>
                 </div>
@@ -149,9 +149,9 @@
             return localStorage.getItem('curso_id_activo') || 'general';
         }
 
-        window.addEventListener('DOMContentLoaded', async () => {
+        window.addEventListener('DOMContentLoaded', () => {
             cargarConfigVisualLocal();
-            await cargarNombresComboBox();
+            cargarNombresComboBoxDesdeLocal();
         });
 
         function cargarConfigVisualLocal() {
@@ -188,7 +188,7 @@
                 document.getElementById('tituloInstitucion').textContent = "Portal de Registro";
                 document.getElementById('subtituloCurso').textContent = "Curso / Grupo activo: general";
                 document.getElementById('logoInstitucion').classList.add('hidden');
-                alert("Campos limpios. Escribe el nuevo ID de curso y título, guarda y sube el nuevo Excel.");
+                alert("Campos limpios. Escribe el nuevo ID de curso y título, guarda y carga el nuevo Excel de nombres.");
                 location.reload();
             }
         }
@@ -213,7 +213,7 @@
                 const { error } = await _supabase.storage.from('logos').upload(fileName, logoFile);
 
                 if (error) {
-                    alert("Error al subir la imagen. Verifica que el bucket 'logos' tenga la política 'INSERT' habilitada en Supabase.");
+                    alert("Error al subir la imagen. Verifica el bucket 'logos' en Supabase.");
                     console.error(error);
                 } else {
                     const { data: publicURL } = _supabase.storage.from('logos').getPublicUrl(fileName);
@@ -226,30 +226,24 @@
             location.reload();
         }
 
-        // Cargar nombres para el ComboBox (solo los que pertenecen al curso activo)
-        async function cargarNombresComboBox() {
+        // Cargar nombres al ComboBox leyendo estrictamente desde la memoria local del navegador
+        function cargarNombresComboBoxDesdeLocal() {
             const cursoActual = obtenerCursoActual();
-            const { data, error } = await _supabase
-                .from('Estudiantes')
-                .select('nombre')
-                .eq('curso_id', cursoActual)
-                .order('nombre', { ascending: true });
+            const nombresGuardados = JSON.parse(localStorage.getItem(`nombres_curso_${cursoActual}`) || "[]");
 
             const selectNombre = document.getElementById('nombre');
             selectNombre.innerHTML = '<option value="">-- Selecciona tu nombre --</option>';
 
-            if (error || !data) return;
-
-            data.forEach(item => {
+            nombresGuardados.forEach(nombre => {
                 let opt = document.createElement('option');
-                opt.value = item.nombre;
-                opt.textContent = item.nombre;
+                opt.value = nombre;
+                opt.textContent = nombre;
                 selectNombre.appendChild(opt);
             });
         }
 
-        // Cargar Excel: Inserta los nombres vacíos a la base de datos para que aparezcan en el ComboBox
-        async function cargarListadoExcel() {
+        // Leer Excel y guardar la lista de nombres localmente para el ComboBox
+        function cargarListadoExcel() {
             const cursoActual = obtenerCursoActual();
             if (cursoActual === 'general' || !cursoActual) {
                 alert("Por favor define primero un 'ID del Curso' válido y guárdalo antes de subir el Excel.");
@@ -265,39 +259,29 @@
             const file = fileInput.files[0];
             const reader = new FileReader();
 
-            reader.onload = async function(e) {
+            reader.onload = function(e) {
                 const data = new Uint8Array(e.target.result);
                 const workbook = XLSX.read(data, { type: 'array' });
                 const firstSheetName = workbook.SheetNames[0];
                 const worksheet = workbook.Sheets[firstSheetName];
                 const json = XLSX.utils.sheet_to_json(worksheet);
 
-                let count = 0;
-                for (let row of json) {
+                let listaNombres = [];
+                json.forEach(row => {
                     const nombreEst = row['Nombre'] || row['NOMBRE'] || row['Estudiante'] || row['ESTUDIANTE'] || Object.values(row)[0];
-                    
                     if (nombreEst) {
-                        const nombreLimpio = String(nombreEst).trim().toUpperCase();
-                        // Verificamos si ya existe en este curso para no duplicar filas vacías
-                        const { data: existe } = await _supabase
-                            .from('Estudiantes')
-                            .select('nombre')
-                            .eq('nombre', nombreLimpio)
-                            .eq('curso_id', cursoActual)
-                            .maybeSingle();
-
-                        if (!existe) {
-                            await _supabase.from('Estudiantes').insert({ 
-                                nombre: nombreLimpio,
-                                curso_id: cursoActual 
-                            });
-                            count++;
-                        }
+                        listaNombres.push(String(nombreEst).trim().toUpperCase());
                     }
-                }
+                });
 
-                alert(`¡Se cargaron ${count} nombres nuevos al curso "${cursoActual}" con éxito!`);
-                await cargarNombresComboBox();
+                // Ordenar alfabéticamente
+                listaNombres.sort();
+
+                // Guardar en la memoria local del navegador específica para este curso
+                localStorage.setItem(`nombres_curso_${cursoActual}`, JSON.stringify(listaNombres));
+
+                alert(`¡Se cargaron ${listaNombres.length} nombres correctamente para el curso "${cursoActual}"!`);
+                cargarNombresComboBoxDesdeLocal();
                 fileInput.value = "";
             };
             reader.readAsArrayBuffer(file);
@@ -362,9 +346,10 @@
             }
         }
 
-        // Al enviar el formulario, actualiza el registro existente del estudiante con sus datos completos
+        // Cuando el estudiante llena el formulario y da Registrar, ahí se envía a la base de datos
         document.getElementById('registroForm').addEventListener('submit', async function(e) {
             e.preventDefault();
+            const cursoActual = obtenerCursoActual();
             const nombre = document.getElementById('nombre').value;
             const tipo_doc = document.getElementById('tipoDoc').value;
             const num_doc = Number(document.getElementById('numDoc').value.trim());
@@ -377,19 +362,29 @@
                 return;
             }
 
-            // Actualizamos la fila que ya vino precargada desde el Excel
+            // Insertar directamente el registro completo en la base de datos de Supabase
             const { error } = await _supabase
                 .from('Estudiantes')
-                .update({ tipo_doc, num_doc, telefono, correo })
-                .eq('nombre', nombre);
+                .insert({ 
+                    nombre: nombre, 
+                    tipo_doc: tipo_doc, 
+                    num_doc: num_doc, 
+                    telefono: telefono, 
+                    correo: correo, 
+                    curso_id: cursoActual 
+                });
 
             if (error) {
                 msg.className = "mt-4 p-3 rounded-lg text-sm bg-red-100 text-red-800 block";
-                msg.textContent = "Hubo un error al guardar. Es posible que el documento ya esté en uso por otra persona.";
-                console.error(error);
+                if (error.code === '23505') {
+                    msg.textContent = "⚠️ Este número de documento o este estudiante ya se encuentra registrado.";
+                } else {
+                    msg.textContent = "Hubo un error al guardar los datos. Es posible que ya exista un registro previo.";
+                    console.error(error);
+                }
             } else {
                 msg.className = "mt-4 p-3 rounded-lg text-sm bg-emerald-100 text-emerald-800 block";
-                msg.textContent = `¡Datos guardados con éxito para ${nombre}!`;
+                msg.textContent = `¡Registro guardado con éxito en la nube para ${nombre}!`;
                 
                 setTimeout(() => {
                     document.getElementById('registroForm').reset();
@@ -426,21 +421,20 @@
                     <td class="p-2.5">${item.telefono || ''}</td>
                     <td class="p-2.5">${item.correo || ''}</td>
                     <td class="p-2.5 text-center">
-                        <button onclick="eliminarEstudiante('${item.nombre}')" class="bg-red-500 text-white px-2 py-1 rounded text-xs hover:bg-red-600">🗑️</button>
+                        <button onclick="eliminarRegistro('${item.id}')" class="bg-red-500 text-white px-2 py-1 rounded text-xs hover:bg-red-600">🗑️</button>
                     </td>
                 `;
                 tbody.appendChild(tr);
             });
         }
 
-        async function eliminarEstudiante(nombre) {
-            if (confirm(`¿Estás seguro de eliminar el registro de ${nombre}?`)) {
-                const { error } = await _supabase.from('Estudiantes').delete().eq('nombre', nombre);
+        async function eliminarRegistro(id) {
+            if (confirm(`¿Estás seguro de eliminar este registro de la nube?`)) {
+                const { error } = await _supabase.from('Estudiantes').delete().eq('id', id);
                 if (error) {
                     alert("No se pudo eliminar.");
                 } else {
                     await actualizarTabla();
-                    await cargarNombresComboBox();
                 }
             }
         }
