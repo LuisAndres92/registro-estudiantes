@@ -169,7 +169,7 @@
             }
         }
 
-        // Enviar datos a la tabla 'Estudiantes' en Supabase
+        // Enviar datos verificando duplicados en Supabase
         document.getElementById('registroForm').addEventListener('submit', async function(e) {
             e.preventDefault();
             const nombre = document.getElementById('nombre').value;
@@ -177,17 +177,36 @@
             const num_doc = document.getElementById('numDoc').value;
             const telefono = document.getElementById('telefono').value;
             const correo = document.getElementById('correo').value;
+            const msg = document.getElementById('mensaje');
 
             if (!nombre || !tipo_doc || !num_doc || !telefono || !correo) {
                 alert("Por favor completa todos los campos.");
                 return;
             }
 
+            // 1. Verificar si ya existe un registro con este nombre en la base de datos
+            const { data: existente, error: errorCheck } = await _supabase
+                .from('Estudiantes')
+                .select('*')
+                .eq('nombre', nombre)
+                .maybeSingle();
+
+            if (errorCheck) {
+                console.error(errorCheck);
+            }
+
+            // Si ya tiene datos registrados (por ejemplo, el campo num_doc no está vacío)
+            if (existente && existente.num_doc) {
+                msg.className = "mt-4 p-3 rounded-lg text-sm bg-amber-100 text-amber-800 block";
+                msg.textContent = `⚠️ Este nombre ya cuenta con un registro guardado en el sistema.`;
+                return;
+            }
+
+            // 2. Si no existe o estaba vacío, procedemos a insertar
             const { error } = await _supabase
                 .from('Estudiantes')
                 .upsert({ nombre, tipo_doc, num_doc, telefono, correo });
 
-            const msg = document.getElementById('mensaje');
             if (error) {
                 msg.className = "mt-4 p-3 rounded-lg text-sm bg-red-100 text-red-800 block";
                 msg.textContent = "Hubo un error al guardar los datos. Revisa la consola.";
