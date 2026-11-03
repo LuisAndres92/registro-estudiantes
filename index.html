@@ -79,15 +79,14 @@
         <div id="panelProtegido" class="hidden mt-4 space-y-6">
             <div class="bg-blue-50 border border-blue-200 p-4 rounded-lg space-y-4">
                 
-                <!-- Selector Inteligente de Cursos Existentes -->
                 <div class="bg-white p-3 rounded border border-blue-100 shadow-sm space-y-2">
-                    <label class="block font-bold text-blue-900 text-xs">📂 Seleccionar Curso Existente o Crear Nuevo:</label>
+                    <label class="block font-bold text-blue-900 text-xs">📂 Seleccionar Curso Activo en la Nube:</label>
                     <div class="flex gap-2">
                         <select id="selectCursosExistentes" onchange="seleccionarCursoInstructor(this.value)" class="border border-slate-300 rounded p-2 text-xs flex-1 bg-slate-50 font-semibold text-slate-800">
                             <option value="">-- Selecciona un curso existente --</option>
                             <option value="nuevo">➕ Crear nuevo curso...</option>
                         </select>
-                        <button onclick="cambiarCursoActivo()" class="bg-indigo-600 text-white px-3 py-1.5 rounded text-xs hover:bg-indigo-700 transition font-medium">⚡ Cargar Curso</button>
+                        <button onclick="cambiarCursoActivo()" class="bg-indigo-600 text-white px-3 py-1.5 rounded text-xs hover:bg-indigo-700 transition font-medium">⚡ Activar Curso</button>
                     </div>
                 </div>
 
@@ -112,14 +111,14 @@
                     <input type="file" id="inputLogoFile" accept="image/*" class="text-xs text-slate-600 mb-2">
                 </div>
 
-                <button onclick="guardarConfiguracion()" class="bg-blue-600 text-white font-medium px-3 py-1.5 rounded hover:bg-blue-700 transition text-xs">💾 Guardar Configuración y Logo</button>
+                <button onclick="guardarConfiguracion()" class="bg-blue-600 text-white font-medium px-3 py-1.5 rounded hover:bg-blue-700 transition text-xs">💾 Guardar Configuración y Logo en la Nube</button>
 
                 <hr class="border-blue-200">
 
                 <div>
                     <label class="block font-semibold text-slate-700 mb-1 text-xs">📂 Cargar Listado de Estudiantes (Excel de Nombres):</label>
                     <input type="file" id="excelFile" accept=".xlsx, .xls, .csv" class="text-xs text-slate-600 mb-2">
-                    <button onclick="cargarListadoExcel()" class="bg-indigo-600 text-white font-medium px-3 py-1.5 rounded hover:bg-indigo-700 transition text-xs">📤 Cargar Nombres al ComboBox</button>
+                    <button onclick="cargarListadoExcel()" class="bg-indigo-600 text-white font-medium px-3 py-1.5 rounded hover:bg-indigo-700 transition text-xs">📤 Subir Nombres a la Nube</button>
                 </div>
             </div>
 
@@ -159,12 +158,12 @@
         const CONTRASENA_SECRETA = "profe123"; 
 
         function obtenerCursoActual() {
-            return localStorage.getItem('curso_id_activo') || 'general';
+            return localStorage.getItem('curso_id_activo') || 'juanmejia2026'; // Predeterminado para tus pruebas
         }
 
         window.addEventListener('DOMContentLoaded', async () => {
-            cargarConfigVisualLocal();
-            cargarNombresComboBoxDesdeLocal();
+            await cargarConfiguracionNube();
+            await cargarNombresComboBoxNube();
 
             if (sessionStorage.getItem('instructor_activo') === 'true') {
                 document.getElementById('loginInstructor').classList.add('hidden');
@@ -174,64 +173,73 @@
             }
         });
 
-        function cargarConfigVisualLocal() {
+        // Descargar la configuración visual directamente desde Supabase
+        async function cargarConfiguracionNube() {
             const cursoId = obtenerCursoActual();
-            const titulo = localStorage.getItem(`inst_titulo_${cursoId}`) || "";
-            const logo = localStorage.getItem(`inst_logo_${cursoId}`) || "";
+            const { data, error } = await _supabase
+                .from('Configuracion')
+                .select('*')
+                .eq('curso_id', cursoId)
+                .maybeSingle();
 
-            if (titulo) {
-                document.getElementById('tituloInstitucion').textContent = titulo;
-                document.getElementById('inputTitulo').value = titulo;
+            if (data) {
+                document.getElementById('tituloInstitucion').textContent = data.titulo || "Portal de Registro";
+                document.getElementById('inputTitulo').value = data.titulo || "";
+                document.getElementById('subtituloCurso').textContent = `Curso / Grupo activo: ${cursoId}`;
+                document.getElementById('inputCursoId').value = cursoId;
+
+                const imgEl = document.getElementById('logoInstitucion');
+                if (data.logo_url) {
+                    imgEl.src = data.logo_url;
+                    imgEl.classList.remove('hidden');
+                } else {
+                    imgEl.classList.add('hidden');
+                }
             } else {
                 document.getElementById('tituloInstitucion').textContent = "Portal de Registro";
-                document.getElementById('inputTitulo').value = "";
-            }
-
-            document.getElementById('subtituloCurso').textContent = `Curso / Grupo activo: ${cursoId}`;
-            document.getElementById('inputCursoId').value = cursoId === 'general' ? '' : cursoId;
-            
-            const imgEl = document.getElementById('logoInstitucion');
-            if (logo) {
-                imgEl.src = logo;
-                imgEl.classList.remove('hidden');
-            } else {
-                imgEl.classList.add('hidden');
+                document.getElementById('subtituloCurso').textContent = `Curso / Grupo activo: ${cursoId}`;
+                document.getElementById('inputCursoId').value = cursoId;
             }
         }
 
-        // Buscar en Supabase y en la memoria local todos los cursos que ya existen
+        // Cargar los nombres desde la tabla Configuracion en Supabase
+        async function cargarNombresComboBoxNube() {
+            const cursoId = obtenerCursoActual();
+            const { data } = await _supabase
+                .from('Configuracion')
+                .select('nombres')
+                .eq('curso_id', cursoId)
+                .maybeSingle();
+
+            const selectNombre = document.getElementById('nombre');
+            selectNombre.innerHTML = '<option value="">-- Selecciona tu nombre --</option>';
+
+            if (data && data.nombres) {
+                let nombres = data.nombres;
+                nombres.forEach(nombre => {
+                    let opt = document.createElement('option');
+                    opt.value = nombre;
+                    opt.textContent = nombre;
+                    selectNombre.appendChild(opt);
+                });
+            }
+        }
+
         async function poblarComboBoxCursosExistentes() {
             const selectCursos = document.getElementById('selectCursosExistentes');
             selectCursos.innerHTML = '<option value="">-- Selecciona un curso existente --</option><option value="nuevo">➕ Crear nuevo curso...</option>';
 
-            // Recopilar cursos de localStorage y de Supabase
-            let cursosSet = new Set();
-            
-            // Revisar localStorage
-            for (let i = 0; i < localStorage.length; i++) {
-                let key = localStorage.key(i);
-                if (key.startsWith('curso_id_activo_') || key.startsWith('nombres_curso_')) {
-                    let parts = key.split('_');
-                    let curso = parts[parts.length - 1];
-                    if (curso && curso !== 'general') cursosSet.add(curso);
-                }
-            }
-
-            // Revisar en la base de datos Supabase
-            const { data } = await _supabase.from('Estudiantes').select('curso_id');
+            const { data } = await _supabase.from('Configuracion').select('curso_id');
             if (data) {
                 data.forEach(item => {
-                    if (item.curso_id && item.curso_id !== 'general') cursosSet.add(item.curso_id);
+                    if (item.curso_id) {
+                        let opt = document.createElement('option');
+                        opt.value = item.curso_id;
+                        opt.textContent = `📁 ${item.curso_id}`;
+                        selectCursos.appendChild(opt);
+                    }
                 });
             }
-
-            cursosSet.forEach(curso => {
-                let opt = document.createElement('option');
-                opt.value = curso;
-                opt.textContent = `📁 ${curso}`;
-                selectCursos.appendChild(opt);
-            });
-
             selectCursos.value = obtenerCursoActual();
         }
 
@@ -241,8 +249,6 @@
                 document.getElementById('inputTitulo').value = '';
             } else if (val) {
                 document.getElementById('inputCursoId').value = val;
-                const titulo = localStorage.getItem(`inst_titulo_${val}`) || "";
-                document.getElementById('inputTitulo').value = titulo;
             }
         }
 
@@ -272,6 +278,7 @@
             }
         }
 
+        // Guardar título, logo y curso directamente en Supabase
         async function guardarConfiguracion() {
             const nuevoCursoId = document.getElementById('inputCursoId').value.trim().toLowerCase().replace(/\s+/g, '_');
             const nuevoTitulo = document.getElementById('inputTitulo').value.trim();
@@ -282,10 +289,10 @@
                 return;
             }
 
-            localStorage.setItem('curso_id_activo', nuevoCursoId);
-            if (nuevoTitulo) {
-                localStorage.setItem(`inst_titulo_${nuevoCursoId}`, nuevoTitulo);
-            }
+            let logoUrlFinal = "";
+            // Buscar si ya tiene logo guardado en la nube
+            const { data: cursoActualData } = await _supabase.from('Configuracion').select('logo_url').eq('curso_id', nuevoCursoId).maybeSingle();
+            if (cursoActualData) logoUrlFinal = cursoActualData.logo_url;
 
             if (logoFile) {
                 const fileName = `${nuevoCursoId}_${Date.now()}_${logoFile.name}`;
@@ -294,41 +301,39 @@
                 if (error) {
                     alert("Error al subir la imagen. Verifica el bucket 'logos' en Supabase.");
                     console.error(error);
+                    return;
                 } else {
                     const { data: publicURL } = _supabase.storage.from('logos').getPublicUrl(fileName);
-                    localStorage.setItem(`inst_logo_${nuevoCursoId}`, publicURL.publicUrl);
+                    logoUrlFinal = publicURL.publicUrl;
                 }
             }
 
-            alert("¡Configuración guardada con éxito!");
-            location.reload();
+            // Upsert en la tabla Configuracion de Supabase
+            const { error: errorUpsert } = await _supabase.from('Configuracion').upsert({
+                curso_id: nuevoCursoId,
+                titulo: nuevoTitulo,
+                logo_url: logoUrlFinal
+            }, { onConflict: 'curso_id' });
+
+            if (errorUpsert) {
+                alert("Hubo un error al guardar en la nube.");
+                console.error(errorUpsert);
+            } else {
+                localStorage.setItem('curso_id_activo', nuevoCursoId);
+                alert("¡Configuración guardada en la nube con éxito!");
+                location.reload();
+            }
         }
 
-        function cargarNombresComboBoxDesdeLocal() {
-            const cursoActual = obtenerCursoActual();
-            const nombresGuardados = JSON.parse(localStorage.getItem(`nombres_curso_${cursoActual}`) || "[]");
-
-            const selectNombre = document.getElementById('nombre');
-            selectNombre.innerHTML = '<option value="">-- Selecciona tu nombre --</option>';
-
-            nombresGuardados.forEach(nombre => {
-                let opt = document.createElement('option');
-                opt.value = nombre;
-                opt.textContent = nombre;
-                selectNombre.appendChild(opt);
-            });
-        }
-
-        function cargarListadoExcel() {
-            const cursoActual = obtenerCursoActual();
+        // Subir Excel y guardar la lista de nombres en Supabase
+        async function cargarListadoExcel() {
             const inputCursoField = document.getElementById('inputCursoId').value.trim().toLowerCase().replace(/\s+/g, '_');
 
             if (!inputCursoField) {
-                alert("Por favor define primero un 'ID del Curso' válido antes de subir el Excel.");
+                alert("Por favor define primero un 'ID del Curso' válido y guárdalo antes de subir el Excel.");
                 return;
             }
 
-            // Asegurar que el curso activo coincida con el input
             localStorage.setItem('curso_id_activo', inputCursoField);
 
             const fileInput = document.getElementById('excelFile');
@@ -340,7 +345,7 @@
             const file = fileInput.files[0];
             const reader = new FileReader();
 
-            reader.onload = function(e) {
+            reader.onload = async function(e) {
                 const data = new Uint8Array(e.target.result);
                 const workbook = XLSX.read(data, { type: 'array' });
                 const firstSheetName = workbook.SheetNames[0];
@@ -356,12 +361,20 @@
                 });
 
                 listaNombres.sort();
-                localStorage.setItem(`nombres_curso_${inputCursoField}`, JSON.stringify(listaNombres));
 
-                alert(`¡Se cargaron ${listaNombres.length} nombres correctamente para el curso "${inputCursoField}"!`);
-                cargarNombresComboBoxDesdeLocal();
-                fileInput.value = "";
-                location.reload();
+                // Actualizar la lista de nombres en la tabla Configuracion de Supabase
+                const { error } = await _supabase.from('Configuracion').upsert({
+                    curso_id: inputCursoField,
+                    nombres: listaNombres
+                }, { onConflict: 'curso_id' });
+
+                if (error) {
+                    alert("Error al guardar los nombres en la nube.");
+                    console.error(error);
+                } else {
+                    alert(`¡Se cargaron y sincronizaron ${listaNombres.length} nombres en la nube para el curso "${inputCursoField}"!`);
+                    location.reload();
+                }
             };
             reader.readAsArrayBuffer(file);
         }
@@ -471,7 +484,6 @@
                     document.getElementById('block-correo').classList.add('hidden');
                     document.getElementById('alertaDoc').classList.add('hidden');
                     msg.classList.add('hidden');
-                    location.reload();
                 }, 3000);
             }
         });
