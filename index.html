@@ -96,9 +96,9 @@
     </div>
 
     <script>
-        // CONFIGURACIÓN DE SUPABASE (REEMPLAZA CON TUS DATOS)
+        // CONFIGURACIÓN DE SUPABASE
         const SUPABASE_URL = 'https://cdrbznqozzxwihusyzvx.supabase.co';
-        const SUPABASE_ANON_KEY = 'sb_publishable_DeoQyoFM1jJHV5BH8Qj4cA_dSEc83nM';
+        const SUPABASE_ANON_KEY = 'sb_publishable_DeoQyoFM1jJHV5BH8Qj4cA_dSEc83nM'; 
         const _supabase = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
         const CONTRASENA_SECRETA = "profe123"; 
@@ -169,7 +169,7 @@
             }
         }
 
-        // Enviar datos a la nube de Supabase
+        // Enviar datos a la tabla 'Estudiantes' en Supabase
         document.getElementById('registroForm').addEventListener('submit', async function(e) {
             e.preventDefault();
             const nombre = document.getElementById('nombre').value;
@@ -183,15 +183,15 @@
                 return;
             }
 
-            // Guardar o actualizar en Supabase (Upsert basado en la clave primaria 'nombre')
             const { error } = await _supabase
-                .from('estudiantes')
+                .from('Estudiantes')
                 .upsert({ nombre, tipo_doc, num_doc, telefono, correo });
 
             const msg = document.getElementById('mensaje');
             if (error) {
                 msg.className = "mt-4 p-3 rounded-lg text-sm bg-red-100 text-red-800 block";
-                msg.textContent = "Hubo un error al guardar los datos. Inténtalo de nuevo.";
+                msg.textContent = "Hubo un error al guardar los datos. Revisa la consola.";
+                console.error(error);
             } else {
                 msg.className = "mt-4 p-3 rounded-lg text-sm bg-emerald-100 text-emerald-800 block";
                 msg.textContent = `¡Datos guardados exitosamente en la nube para ${nombre}!`;
@@ -208,7 +208,7 @@
         });
 
         async function actualizarTabla() {
-            const { data, error } = await _supabase.from('estudiantes').select('*').order('nombre', { ascending: true });
+            const { data, error } = await _supabase.from('Estudiantes').select('*').order('nombre', { ascending: true });
             
             const tbody = document.getElementById('cuerpoTabla');
             tbody.innerHTML = "";
@@ -248,7 +248,7 @@
         }
 
         async function descargarExcel() {
-            const { data, error } = await _supabase.from('estudiantes').select('*').order('nombre', { ascending: true });
+            const { data, error } = await _supabase.from('Estudiantes').select('*').order('nombre', { ascending: true });
             if (error || !data) {
                 alert("No se pudieron cargar los datos para exportar.");
                 return;
