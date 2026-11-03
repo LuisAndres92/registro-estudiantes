@@ -12,6 +12,20 @@
         <h1 class="text-2xl font-bold text-slate-800 mb-2 text-center">📋 Registro de Estudiantes</h1>
         <p class="text-slate-600 mb-6 text-center text-sm">Completa los pasos para registrar tus datos.</p>
 
+        <!-- Resumen dinámico superior para verificar elecciones -->
+        <div id="resumenContainer" class="hidden mb-6 bg-blue-50 border border-blue-200 rounded-lg p-4 text-sm text-slate-700">
+            <h3 class="font-bold text-blue-800 mb-2 flex justify-between items-center">
+                <span>📌 Tus datos ingresados:</span>
+                <button type="button" onclick="reiniciarFormulario()" class="text-xs bg-blue-600 text-white px-2 py-1 rounded hover:bg-blue-700 transition">🔄 Cambiar / Corregir</button>
+            </h3>
+            <ul class="space-y-1 text-xs sm:text-sm">
+                <li id="sum-nombre"></li>
+                <li id="sum-tipoDoc"></li>
+                <li id="sum-numDoc"></li>
+                <li id="sum-telefono"></li>
+            </ul>
+        </div>
+
         <form id="registroForm" class="space-y-5">
             <!-- Paso 1: Seleccionar Nombre -->
             <div id="step-1" class="step-container">
@@ -123,7 +137,6 @@
             nombre: nombre, tipoDoc: "", numDoc: "", telefono: "", correo: ""
         }));
 
-        // Cargar nombres en el select de manera correcta
         const selectNombre = document.getElementById('nombre');
         estudiantes.forEach(nombre => {
             let opt = document.createElement('option');
@@ -134,24 +147,41 @@
 
         function siguientePaso(pasoActual) {
             if (pasoActual === 1) {
-                if (!document.getElementById('nombre').value) {
+                let val = document.getElementById('nombre').value;
+                if (!val) {
                     alert("Por favor selecciona tu nombre.");
                     return;
                 }
+                document.getElementById('sum-nombre').innerHTML = `👤 <b>Nombre:</b> ${val}`;
+            } else if (pasoActual === 2) {
+                let val = document.getElementById('tipoDoc').value;
+                document.getElementById('sum-tipoDoc').innerHTML = `📄 <b>Tipo Doc:</b> ${val}`;
             } else if (pasoActual === 3) {
-                if (!document.getElementById('numDoc').value.trim()) {
+                let val = document.getElementById('numDoc').value.trim();
+                if (!val) {
                     alert("Por favor ingresa tu número de documento.");
                     return;
                 }
+                document.getElementById('sum-numDoc').innerHTML = `🔢 <b>N° Documento:</b> ${val}`;
             } else if (pasoActual === 4) {
-                if (!document.getElementById('telefono').value.trim()) {
+                let val = document.getElementById('telefono').value.trim();
+                if (!val) {
                     alert("Por favor ingresa tu número de teléfono.");
                     return;
                 }
+                document.getElementById('sum-telefono').innerHTML = `📞 <b>Teléfono:</b> ${val}`;
+                document.getElementById('resumenContainer').classList.remove('hidden');
             }
 
             document.getElementById(`step-${pasoActual}`).classList.add('hidden');
             document.getElementById(`step-${pasoActual + 1}`).classList.remove('hidden');
+        }
+
+        function reiniciarFormulario() {
+            document.getElementById('registroForm').reset();
+            document.getElementById('resumenContainer').classList.add('hidden');
+            for(let i=2; i<=5; i++) document.getElementById(`step-${i}`).classList.add('hidden');
+            document.getElementById('step-1').classList.remove('hidden');
         }
 
         document.getElementById('registroForm').addEventListener('submit', function(e) {
@@ -176,9 +206,10 @@
                 msg.className = "mt-4 p-3 rounded-lg text-sm bg-emerald-100 text-emerald-800 block";
                 msg.textContent = `¡Datos guardados exitosamente para ${nombre}!`;
                 
-                document.getElementById('registroForm').reset();
-                for(let i=2; i<=5; i++) document.getElementById(`step-${i}`).classList.add('hidden');
-                document.getElementById('step-1').classList.remove('hidden');
+                setTimeout(() => {
+                    reiniciarFormulario();
+                    msg.classList.add('hidden');
+                }, 3000);
             }
         });
 
