@@ -80,7 +80,7 @@
             <div class="bg-blue-50 border border-blue-200 p-4 rounded-lg space-y-4">
                 <h3 class="text-sm font-bold text-blue-900">⚙️ Configuración del Curso Actual</h3>
                 
-                <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs">
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
                     <div>
                         <label class="block font-semibold text-slate-700 mb-1">ID del Curso / Colegio (Sin espacios):</label>
                         <input type="text" id="inputCursoId" class="border border-slate-300 rounded p-2 w-full bg-white font-bold text-blue-800" placeholder="ej. juan_mejia_2026">
@@ -89,12 +89,14 @@
                         <label class="block font-semibold text-slate-700 mb-1">Título de la Institución:</label>
                         <input type="text" id="inputTitulo" class="border border-slate-300 rounded p-2 w-full bg-white" placeholder="Ej. I.E. JUAN MEJIA GOMEZ">
                     </div>
-                    <div>
-                        <label class="block font-semibold text-slate-700 mb-1">URL de la Imagen / Logo:</label>
-                        <input type="text" id="inputLogo" class="border border-slate-300 rounded p-2 w-full bg-white" placeholder="Enlace de la imagen">
-                    </div>
                 </div>
-                <button onclick="guardarConfiguracion()" class="bg-blue-600 text-white font-medium px-3 py-1.5 rounded hover:bg-blue-700 transition text-xs">💾 Guardar Configuración</button>
+
+                <div>
+                    <label class="block font-semibold text-slate-700 mb-1 text-xs">🖼️ Subir Escudo / Logo del Colegio (Imagen):</label>
+                    <input type="file" id="inputLogoFile" accept="image/*" class="text-xs text-slate-600 mb-2">
+                </div>
+
+                <button onclick="guardarConfiguracion()" class="bg-blue-600 text-white font-medium px-3 py-1.5 rounded hover:bg-blue-700 transition text-xs">💾 Guardar Configuración y Logo</button>
 
                 <hr class="border-blue-200">
 
@@ -140,7 +142,6 @@
 
         const CONTRASENA_SECRETA = "profe123"; 
 
-        // Obtener el ID del curso actual (por defecto 'general' si no se ha configurado)
         function obtenerCursoActual() {
             return localStorage.getItem('curso_id_activo') || 'general';
         }
@@ -165,16 +166,15 @@
             if (logo) {
                 imgEl.src = logo;
                 imgEl.classList.remove('hidden');
-                document.getElementById('inputLogo').value = logo;
             } else {
                 imgEl.classList.add('hidden');
             }
         }
 
-        function guardarConfiguracion() {
+        async function guardarConfiguracion() {
             const nuevoCursoId = document.getElementById('inputCursoId').value.trim().toLowerCase().replace(/\s+/g, '_');
             const nuevoTitulo = document.getElementById('inputTitulo').value.trim();
-            const nuevoLogo = document.getElementById('inputLogo').value.trim();
+            const logoFile = document.getElementById('inputLogoFile').files[0];
 
             if (!nuevoCursoId) {
                 alert("El ID del curso no puede estar vacío.");
@@ -183,14 +183,27 @@
 
             localStorage.setItem('curso_id_activo', nuevoCursoId);
             localStorage.setItem(`inst_titulo_${nuevoCursoId}`, "📋 " + nuevoTitulo);
-            localStorage.setItem(`inst_logo_${nuevoCursoId}`, nuevoLogo);
+
+            // Si subió un archivo de logo, lo guardamos en el Storage de Supabase
+            if (logoFile) {
+                const fileName = `${nuevoCursoId}_${Date.now()}_${logoFile.name}`;
+                const { data, error } = await _supabase.storage.from('logos').upload(fileName, logoFile);
+
+                if (error) {
+                    alert("Hubo un error al subir la imagen del logo.");
+                    console.error(error);
+                } else {
+                    // Obtener URL pública de la imagen
+                    const { data: publicURL } = _supabase.storage.from('logos').getPublicUrl(fileName);
+                    localStorage.setItem(`inst_logo_${nuevoCursoId}`, publicURL.publicUrl);
+                }
+            }
 
             cargarConfigVisualLocal();
-            alert("¡Configuración guardada! Ahora la página web operará bajo este curso/colegio.");
-            location.reload(); // Recargar para aplicar filtros limpios
+            alert("¡Configuración guardada con éxito!");
+            location.reload();
         }
 
-        // Cargar nombres filtrados estrictamente por el curso actual
         async function cargarNombresComboBox() {
             const cursoActual = obtenerCursoActual();
             const { data, error } = await _supabase
@@ -212,7 +225,6 @@
             });
         }
 
-        // Cargar Excel y asignarle el curso_id automáticamente
         async function cargarListadoExcel() {
             const cursoActual = obtenerCursoActual();
             const fileInput = document.getElementById('excelFile');
@@ -349,7 +361,6 @@
             }
         });
 
-        // Mostrar solo los registros del curso actual en el panel
         async function actualizarTabla() {
             const cursoActual = obtenerCursoActual();
             const { data, error } = await _supabase
@@ -410,7 +421,6 @@
             document.getElementById('errorClave').classList.add('hidden');
         }
 
-        // Descargar Excel filtrado exclusivamente por el curso activo
         async function descargarExcel() {
             const cursoActual = obtenerCursoActual();
             const { data, error } = await _supabase
