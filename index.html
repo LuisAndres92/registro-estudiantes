@@ -70,7 +70,6 @@
             <h2 class="text-base font-bold text-slate-800 mb-1">🔒 Panel del Instructor & Configuración</h2>
             <p class="text-xs text-slate-600 mb-2">Ingresa tu contraseña para gestionar listados, aislar por curso y ver registros.</p>
             <div class="flex gap-2">
-                <!-- Se agregó el evento onkeydown para permitir Enter -->
                 <input type="password" id="claveInstructor" placeholder="Contraseña" onkeydown="manejarEnter(event)" class="border border-slate-300 rounded-lg p-2 text-sm flex-1">
                 <button onclick="verificarClave()" class="bg-slate-800 text-white font-medium px-4 py-2 rounded-lg hover:bg-slate-900 transition text-sm">Acceder</button>
             </div>
@@ -79,9 +78,22 @@
 
         <div id="panelProtegido" class="hidden mt-4 space-y-6">
             <div class="bg-blue-50 border border-blue-200 p-4 rounded-lg space-y-4">
+                
+                <!-- Selector Inteligente de Cursos Existentes -->
+                <div class="bg-white p-3 rounded border border-blue-100 shadow-sm space-y-2">
+                    <label class="block font-bold text-blue-900 text-xs">📂 Seleccionar Curso Existente o Crear Nuevo:</label>
+                    <div class="flex gap-2">
+                        <select id="selectCursosExistentes" onchange="seleccionarCursoInstructor(this.value)" class="border border-slate-300 rounded p-2 text-xs flex-1 bg-slate-50 font-semibold text-slate-800">
+                            <option value="">-- Selecciona un curso existente --</option>
+                            <option value="nuevo">➕ Crear nuevo curso...</option>
+                        </select>
+                        <button onclick="cambiarCursoActivo()" class="bg-indigo-600 text-white px-3 py-1.5 rounded text-xs hover:bg-indigo-700 transition font-medium">⚡ Cargar Curso</button>
+                    </div>
+                </div>
+
                 <div class="flex justify-between items-center">
-                    <h3 class="text-sm font-bold text-blue-900">⚙️ Configuración del Curso Actual</h3>
-                    <button onclick="nuevoCurso()" class="bg-amber-600 text-white font-medium px-3 py-1 rounded hover:bg-amber-700 transition text-xs">🔄 Nuevo Curso / Limpiar</button>
+                    <h3 class="text-sm font-bold text-blue-900">⚙️ Configuración y Personalización</h3>
+                    <button onclick="nuevoCurso()" class="bg-amber-600 text-white font-medium px-3 py-1 rounded hover:bg-amber-700 transition text-xs">🔄 Limpiar / Nuevo</button>
                 </div>
                 
                 <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
@@ -154,10 +166,10 @@
             cargarConfigVisualLocal();
             cargarNombresComboBoxDesdeLocal();
 
-            // Verificar si el instructor ya había iniciado sesión antes de recargar la página
             if (sessionStorage.getItem('instructor_activo') === 'true') {
                 document.getElementById('loginInstructor').classList.add('hidden');
                 document.getElementById('panelProtegido').classList.remove('hidden');
+                await poblarComboBoxCursosExistentes();
                 await actualizarTabla();
             }
         });
@@ -187,10 +199,69 @@
             }
         }
 
+        // Buscar en Supabase y en la memoria local todos los cursos que ya existen
+        async function poblarComboBoxCursosExistentes() {
+            const selectCursos = document.getElementById('selectCursosExistentes');
+            selectCursos.innerHTML = '<option value="">-- Selecciona un curso existente --</option><option value="nuevo">➕ Crear nuevo curso...</option>';
+
+            // Recopilar cursos de localStorage y de Supabase
+            let cursosSet = new Set();
+            
+            // Revisar localStorage
+            for (let i = 0; i < localStorage.length; i++) {
+                let key = localStorage.key(i);
+                if (key.startsWith('curso_id_activo_') || key.startsWith('nombres_curso_')) {
+                    let parts = key.split('_');
+                    let curso = parts[parts.length - 1];
+                    if (curso && curso !== 'general') cursosSet.add(curso);
+                }
+            }
+
+            // Revisar en la base de datos Supabase
+            const { data } = await _supabase.from('Estudiantes').select('curso_id');
+            if (data) {
+                data.forEach(item => {
+                    if (item.curso_id && item.curso_id !== 'general') cursosSet.add(item.curso_id);
+                });
+            }
+
+            cursosSet.forEach(curso => {
+                let opt = document.createElement('option');
+                opt.value = curso;
+                opt.textContent = `📁 ${curso}`;
+                selectCursos.appendChild(opt);
+            });
+
+            selectCursos.value = obtenerCursoActual();
+        }
+
+        function seleccionarCursoInstructor(val) {
+            if (val === 'nuevo') {
+                document.getElementById('inputCursoId').value = '';
+                document.getElementById('inputTitulo').value = '';
+            } else if (val) {
+                document.getElementById('inputCursoId').value = val;
+                const titulo = localStorage.getItem(`inst_titulo_${val}`) || "";
+                document.getElementById('inputTitulo').value = titulo;
+            }
+        }
+
+        async function cambiarCursoActivo() {
+            const selectVal = document.getElementById('selectCursosExistentes').value;
+            if (!selectVal || selectVal === 'nuevo') {
+                alert("Selecciona un curso válido de la lista.");
+                return;
+            }
+
+            localStorage.setItem('curso_id_activo', selectVal);
+            alert(`¡Cambiado al curso "${selectVal}" con éxito!`);
+            location.reload();
+        }
+
         function nuevoCurso() {
             if (confirm("¿Deseas limpiar los campos para configurar un nuevo curso o colegio?")) {
                 localStorage.removeItem('curso_id_activo');
-                sessionStorage.removeItem('instructor_activo');
+                document.getElementById('selectCursosExistentes').value = 'nuevo';
                 document.getElementById('inputCursoId').value = "";
                 document.getElementById('inputTitulo').value = "";
                 document.getElementById('inputLogoFile').value = "";
@@ -198,7 +269,6 @@
                 document.getElementById('subtituloCurso').textContent = "Curso / Grupo activo: general";
                 document.getElementById('logoInstitucion').classList.add('hidden');
                 alert("Campos limpios. Escribe el nuevo ID de curso y título, guarda y carga el nuevo Excel de nombres.");
-                location.reload();
             }
         }
 
@@ -251,10 +321,15 @@
 
         function cargarListadoExcel() {
             const cursoActual = obtenerCursoActual();
-            if (cursoActual === 'general' || !cursoActual) {
-                alert("Por favor define primero un 'ID del Curso' válido y guárdalo antes de subir el Excel.");
+            const inputCursoField = document.getElementById('inputCursoId').value.trim().toLowerCase().replace(/\s+/g, '_');
+
+            if (!inputCursoField) {
+                alert("Por favor define primero un 'ID del Curso' válido antes de subir el Excel.");
                 return;
             }
+
+            // Asegurar que el curso activo coincida con el input
+            localStorage.setItem('curso_id_activo', inputCursoField);
 
             const fileInput = document.getElementById('excelFile');
             if (fileInput.files.length === 0) {
@@ -281,11 +356,12 @@
                 });
 
                 listaNombres.sort();
-                localStorage.setItem(`nombres_curso_${cursoActual}`, JSON.stringify(listaNombres));
+                localStorage.setItem(`nombres_curso_${inputCursoField}`, JSON.stringify(listaNombres));
 
-                alert(`¡Se cargaron ${listaNombres.length} nombres correctamente para el curso "${cursoActual}"!`);
+                alert(`¡Se cargaron ${listaNombres.length} nombres correctamente para el curso "${inputCursoField}"!`);
                 cargarNombresComboBoxDesdeLocal();
                 fileInput.value = "";
+                location.reload();
             };
             reader.readAsArrayBuffer(file);
         }
@@ -323,7 +399,7 @@
                 return;
             }
 
-            const { data, error } = await _supabase
+            const { data } = await _supabase
                 .from('Estudiantes')
                 .select('*')
                 .eq('num_doc', Number(numDocVal))
@@ -395,6 +471,7 @@
                     document.getElementById('block-correo').classList.add('hidden');
                     document.getElementById('alertaDoc').classList.add('hidden');
                     msg.classList.add('hidden');
+                    location.reload();
                 }, 3000);
             }
         });
@@ -440,7 +517,6 @@
             }
         }
 
-        // Permitir iniciar sesión presionando Enter
         function manejarEnter(event) {
             if (event.key === 'Enter') {
                 verificarClave();
@@ -450,10 +526,10 @@
         async function verificarClave() {
             const claveIngresada = document.getElementById('claveInstructor').value;
             if (claveIngresada === CONTRASENA_SECRETA) {
-                // Guardar sesión activa en el navegador
                 sessionStorage.setItem('instructor_activo', 'true');
                 document.getElementById('loginInstructor').classList.add('hidden');
                 document.getElementById('panelProtegido').classList.remove('hidden');
+                await poblarComboBoxCursosExistentes();
                 await actualizarTabla();
             } else {
                 document.getElementById('errorClave').classList.remove('hidden');
