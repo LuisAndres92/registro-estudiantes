@@ -123,6 +123,7 @@
             nombre: nombre, tipoDoc: "", numDoc: "", telefono: "", correo: ""
         }));
 
+        // Cargar nombres en el select de manera correcta
         const selectNombre = document.getElementById('nombre');
         estudiantes.forEach(nombre => {
             let opt = document.createElement('option');
@@ -224,3 +225,11 @@
                 "Número de Teléfono": r.telefono,
                 "Correo Electrónico": r.correo
             }));
+            let worksheet = XLSX.utils.json_to_sheet(dataExport);
+            let workbook = XLSX.utils.book_new();
+            XLSX.utils.book_append_sheet(workbook, worksheet, "Estudiantes");
+            XLSX.writeFile(workbook, "Listado_Estudiantes_Actualizado.xlsx");
+        }
+    </script>
+</body>
+</html>
