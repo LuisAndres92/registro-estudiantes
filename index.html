@@ -3,17 +3,21 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Registro de Estudiantes</title>
+    <title>Portal de Registro Institucional</title>
     <!-- Librerías de Excel, Tailwind y Supabase -->
     <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
 <body class="bg-slate-50 min-h-screen py-10 px-4">
-    <!-- Contenedor principal ampliado para mayor comodidad -->
     <div class="max-w-3xl mx-auto bg-white rounded-xl shadow-md overflow-hidden p-6 sm:p-8">
-        <h1 class="text-2xl font-bold text-slate-800 mb-2 text-center">📋 Registro de Estudiantes</h1>
-        <p class="text-slate-600 mb-6 text-center text-sm">Selecciona tu nombre y completa los campos progresivamente.</p>
+        
+        <!-- Cabecera Dinámica Institucional -->
+        <div class="text-center mb-6">
+            <img id="logoInstitucion" src="" alt="Logo" class="w-24 h-24 mx-auto mb-3 object-contain rounded-full border-2 border-slate-200 hidden">
+            <h1 id="tituloInstitucion" class="text-2xl font-bold text-slate-800">📋 Portal de Registro</h1>
+            <p id="subtituloCurso" class="text-slate-600 text-sm mt-1">Selecciona tu nombre y completa los campos progresivamente.</p>
+        </div>
 
         <form id="registroForm" class="space-y-4">
             <!-- Paso 1: Seleccionar Nombre -->
@@ -36,7 +40,7 @@
                 </select>
             </div>
 
-            <!-- Paso 3: Número de Documento (Validación Global en Vivo) -->
+            <!-- Paso 3: Número de Documento -->
             <div id="block-numDoc" class="hidden">
                 <label class="block text-sm font-semibold text-slate-700 mb-1">3. Número de Documento:</label>
                 <input type="number" id="numDoc" oninput="verificarDocumentoEnVivo()" class="w-full border border-slate-300 rounded-lg p-3 text-slate-800 focus:ring-2 focus:ring-blue-500" placeholder="Ej. 1065...">
@@ -63,8 +67,8 @@
 
         <!-- Panel del Instructor -->
         <div id="loginInstructor" class="bg-slate-100 p-4 rounded-lg">
-            <h2 class="text-base font-bold text-slate-800 mb-1">🔒 Panel del Instructor</h2>
-            <p class="text-xs text-slate-600 mb-2">Ingresa tu contraseña para ver los registros en la nube y descargar el Excel.</p>
+            <h2 class="text-base font-bold text-slate-800 mb-1">🔒 Panel del Instructor & Configuración</h2>
+            <p class="text-xs text-slate-600 mb-2">Ingresa tu contraseña para gestionar listados, aislar por curso y ver registros.</p>
             <div class="flex gap-2">
                 <input type="password" id="claveInstructor" placeholder="Contraseña" class="border border-slate-300 rounded-lg p-2 text-sm flex-1">
                 <button onclick="verificarClave()" class="bg-slate-800 text-white font-medium px-4 py-2 rounded-lg hover:bg-slate-900 transition text-sm">Acceder</button>
@@ -72,70 +76,183 @@
             <p id="errorClave" class="text-red-500 text-xs mt-2 hidden">Contraseña incorrecta.</p>
         </div>
 
-        <div id="panelProtegido" class="hidden mt-4">
-            <div class="flex justify-between items-center mb-3">
-                <h2 class="text-base font-bold text-slate-800">Listado Consolidado (Nube)</h2>
-                <div class="flex gap-2">
-                    <button onclick="descargarExcel()" class="bg-emerald-600 text-white font-medium px-3 py-1.5 rounded-lg hover:bg-emerald-700 transition text-xs">📥 Descargar Excel</button>
-                    <button onclick="cerrarPanel()" class="bg-red-600 text-white font-medium px-3 py-1.5 rounded-lg hover:bg-red-700 transition text-xs">Bloquear</button>
+        <div id="panelProtegido" class="hidden mt-4 space-y-6">
+            <div class="bg-blue-50 border border-blue-200 p-4 rounded-lg space-y-4">
+                <h3 class="text-sm font-bold text-blue-900">⚙️ Configuración del Curso Actual</h3>
+                
+                <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs">
+                    <div>
+                        <label class="block font-semibold text-slate-700 mb-1">ID del Curso / Colegio (Sin espacios):</label>
+                        <input type="text" id="inputCursoId" class="border border-slate-300 rounded p-2 w-full bg-white font-bold text-blue-800" placeholder="ej. juan_mejia_2026">
+                    </div>
+                    <div>
+                        <label class="block font-semibold text-slate-700 mb-1">Título de la Institución:</label>
+                        <input type="text" id="inputTitulo" class="border border-slate-300 rounded p-2 w-full bg-white" placeholder="Ej. I.E. JUAN MEJIA GOMEZ">
+                    </div>
+                    <div>
+                        <label class="block font-semibold text-slate-700 mb-1">URL de la Imagen / Logo:</label>
+                        <input type="text" id="inputLogo" class="border border-slate-300 rounded p-2 w-full bg-white" placeholder="Enlace de la imagen">
+                    </div>
+                </div>
+                <button onclick="guardarConfiguracion()" class="bg-blue-600 text-white font-medium px-3 py-1.5 rounded hover:bg-blue-700 transition text-xs">💾 Guardar Configuración</button>
+
+                <hr class="border-blue-200">
+
+                <div>
+                    <label class="block font-semibold text-slate-700 mb-1 text-xs">📂 Cargar Listado de Estudiantes (Excel):</label>
+                    <input type="file" id="excelFile" accept=".xlsx, .xls, .csv" class="text-xs text-slate-600 mb-2">
+                    <button onclick="cargarListadoExcel()" class="bg-indigo-600 text-white font-medium px-3 py-1.5 rounded hover:bg-indigo-700 transition text-xs">📤 Subir Estudiantes al Curso Actual</button>
                 </div>
             </div>
-            <!-- Tabla con mayor altura visible (max-h-96) para evitar exceso de scroll -->
-            <div class="overflow-x-auto border border-slate-200 rounded-lg max-h-96">
-                <table id="tablaEstudiantes" class="w-full text-left border-collapse text-xs">
-                    <thead class="bg-slate-100 text-slate-700 sticky top-0">
-                        <tr>
-                            <th class="p-2.5 border-b">Nombre</th>
-                            <th class="p-2.5 border-b">Tipo</th>
-                            <th class="p-2.5 border-b">N° Doc</th>
-                            <th class="p-2.5 border-b">Tel</th>
-                            <th class="p-2.5 border-b">Correo</th>
-                        </tr>
-                    </thead>
-                    <tbody id="cuerpoTabla" class="text-slate-600"></tbody>
-                </table>
+
+            <!-- Listado y Exportación -->
+            <div>
+                <div class="flex justify-between items-center mb-3">
+                    <h3 class="text-sm font-bold text-slate-800">Registros del Curso Actual (Nube)</h3>
+                    <div class="flex gap-2">
+                        <button onclick="descargarExcel()" class="bg-emerald-600 text-white font-medium px-3 py-1.5 rounded-lg hover:bg-emerald-700 transition text-xs">📥 Descargar Excel</button>
+                        <button onclick="cerrarPanel()" class="bg-red-600 text-white font-medium px-3 py-1.5 rounded-lg hover:bg-red-700 transition text-xs">Bloquear</button>
+                    </div>
+                </div>
+                <div class="overflow-x-auto border border-slate-200 rounded-lg max-h-96">
+                    <table id="tablaEstudiantes" class="w-full text-left border-collapse text-xs">
+                        <thead class="bg-slate-100 text-slate-700 sticky top-0">
+                            <tr>
+                                <th class="p-2.5 border-b">Nombre</th>
+                                <th class="p-2.5 border-b">Tipo</th>
+                                <th class="p-2.5 border-b">N° Doc</th>
+                                <th class="p-2.5 border-b">Tel</th>
+                                <th class="p-2.5 border-b">Correo</th>
+                                <th class="p-2.5 border-b text-center">Acción</th>
+                            </tr>
+                        </thead>
+                        <tbody id="cuerpoTabla" class="text-slate-600"></tbody>
+                    </table>
+                </div>
             </div>
         </div>
     </div>
 
     <script>
-        // CONFIGURACIÓN DE SUPABASE
         const SUPABASE_URL = 'https://cdrbznqozzxwihusyzvx.supabase.co';
         const SUPABASE_ANON_KEY = 'sb_publishable_DeoQyoFM1jJHV5BH8Qj4cA_dSEc83nM'; 
         const _supabase = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
         const CONTRASENA_SECRETA = "profe123"; 
 
-        const estudiantes = [
-            "ALEJANDRO ADOLFO ARAUJO FONSECA",
-            "CRISTIAN ROJAS VILLALOBOS",
-            "CRISTIAN DE JESUS MIELES CADENA",
-            "EDILBERTO DIAZ PEÑA",
-            "FERNANDO ENRIQUE CASTRILLO ROMERO",
-            "JESUS MANUEL TORRES MEJIA",
-            "JUAN CAMILO MORENO PISCIOTTY",
-            "KAROLL KATTIER FUENTES ACUÑA",
-            "MANUEL ALEJANDRO MADERO MOLINA",
-            "MARIA CAMILA FLOREZ CASTILLEJO",
-            "RAUL SANTIAGO MENESES TAPIAS",
-            "SAMUEL DAVID OCHOA ELIAS",
-            "SERGIO ANDRES DUQUE DITTA",
-            "SHARICK SOFIA HERRERA TORRES",
-            "SHARITH DAYANA TURIZO MARTINEZ",
-            "YOVANI ANDRES MONTERO GARCIA",
-            "YURLEY CENITH DITTA MANCILLA"
-        ];
+        // Obtener el ID del curso actual (por defecto 'general' si no se ha configurado)
+        function obtenerCursoActual() {
+            return localStorage.getItem('curso_id_activo') || 'general';
+        }
 
-        const selectNombre = document.getElementById('nombre');
-        estudiantes.forEach(nombre => {
-            let opt = document.createElement('option');
-            opt.value = nombre;
-            opt.textContent = nombre;
-            selectNombre.appendChild(opt);
+        window.addEventListener('DOMContentLoaded', async () => {
+            cargarConfigVisualLocal();
+            await cargarNombresComboBox();
         });
 
+        function cargarConfigVisualLocal() {
+            const cursoId = obtenerCursoActual();
+            const titulo = localStorage.getItem(`inst_titulo_${cursoId}`) || "📋 Portal de Registro de Estudiantes";
+            const logo = localStorage.getItem(`inst_logo_${cursoId}`) || "";
+
+            document.getElementById('tituloInstitucion').textContent = titulo;
+            document.getElementById('subtituloCurso').textContent = `Curso / Grupo activo: ${cursoId}`;
+            
+            document.getElementById('inputCursoId').value = cursoId;
+            document.getElementById('inputTitulo').value = titulo.replace("📋 ", "");
+            
+            const imgEl = document.getElementById('logoInstitucion');
+            if (logo) {
+                imgEl.src = logo;
+                imgEl.classList.remove('hidden');
+                document.getElementById('inputLogo').value = logo;
+            } else {
+                imgEl.classList.add('hidden');
+            }
+        }
+
+        function guardarConfiguracion() {
+            const nuevoCursoId = document.getElementById('inputCursoId').value.trim().toLowerCase().replace(/\s+/g, '_');
+            const nuevoTitulo = document.getElementById('inputTitulo').value.trim();
+            const nuevoLogo = document.getElementById('inputLogo').value.trim();
+
+            if (!nuevoCursoId) {
+                alert("El ID del curso no puede estar vacío.");
+                return;
+            }
+
+            localStorage.setItem('curso_id_activo', nuevoCursoId);
+            localStorage.setItem(`inst_titulo_${nuevoCursoId}`, "📋 " + nuevoTitulo);
+            localStorage.setItem(`inst_logo_${nuevoCursoId}`, nuevoLogo);
+
+            cargarConfigVisualLocal();
+            alert("¡Configuración guardada! Ahora la página web operará bajo este curso/colegio.");
+            location.reload(); // Recargar para aplicar filtros limpios
+        }
+
+        // Cargar nombres filtrados estrictamente por el curso actual
+        async function cargarNombresComboBox() {
+            const cursoActual = obtenerCursoActual();
+            const { data, error } = await _supabase
+                .from('Estudiantes')
+                .select('nombre')
+                .eq('curso_id', cursoActual)
+                .order('nombre', { ascending: true });
+
+            const selectNombre = document.getElementById('nombre');
+            selectNombre.innerHTML = '<option value="">-- Selecciona tu nombre --</option>';
+
+            if (error || !data) return;
+
+            data.forEach(item => {
+                let opt = document.createElement('option');
+                opt.value = item.nombre;
+                opt.textContent = item.nombre;
+                selectNombre.appendChild(opt);
+            });
+        }
+
+        // Cargar Excel y asignarle el curso_id automáticamente
+        async function cargarListadoExcel() {
+            const cursoActual = obtenerCursoActual();
+            const fileInput = document.getElementById('excelFile');
+            if (fileInput.files.length === 0) {
+                alert("Por favor selecciona un archivo Excel primero.");
+                return;
+            }
+
+            const file = fileInput.files[0];
+            const reader = new FileReader();
+
+            reader.onload = async function(e) {
+                const data = new Uint8Array(e.target.result);
+                const workbook = XLSX.read(data, { type: 'array' });
+                const firstSheetName = workbook.SheetNames[0];
+                const worksheet = workbook.Sheets[firstSheetName];
+                const json = XLSX.utils.sheet_to_json(worksheet);
+
+                let count = 0;
+                for (let row of json) {
+                    const nombreEst = row['Nombre'] || row['NOMBRE'] || row['Estudiante'] || row['ESTUDIANTE'] || Object.values(row)[0];
+                    
+                    if (nombreEst) {
+                        await _supabase.from('Estudiantes').upsert({ 
+                            nombre: String(nombreEst).trim().toUpperCase(),
+                            curso_id: cursoActual 
+                        }, { onConflict: 'nombre' });
+                        count++;
+                    }
+                }
+
+                alert(`¡Se cargaron ${count} estudiantes al curso "${cursoActual}" con éxito!`);
+                await cargarNombresComboBox();
+                fileInput.value = "";
+            };
+            reader.readAsArrayBuffer(file);
+        }
+
         function mostrarPaso2() {
-            if (selectNombre.value) {
+            if (document.getElementById('nombre').value) {
                 document.getElementById('block-tipoDoc').classList.remove('hidden');
             } else {
                 document.getElementById('block-tipoDoc').classList.add('hidden');
@@ -173,9 +290,9 @@
                 .eq('num_doc', Number(numDocVal))
                 .maybeSingle();
 
-            if (data) {
+            if (data && data.nombre !== document.getElementById('nombre').value) {
                 alerta.className = "text-xs mt-1 text-red-600 font-semibold block";
-                alerta.textContent = `⚠️ Este número de documento ya está registrado en el sistema (pertenece a: ${data.nombre}).`;
+                alerta.textContent = `⚠️ Este número ya está registrado (pertenece a: ${data.nombre}).`;
                 telefonoBlock.classList.add('hidden');
                 document.getElementById('block-correo').classList.add('hidden');
             } else {
@@ -209,19 +326,16 @@
 
             const { error } = await _supabase
                 .from('Estudiantes')
-                .insert({ nombre, tipo_doc, num_doc, telefono, correo });
+                .update({ tipo_doc, num_doc, telefono, correo })
+                .eq('nombre', nombre);
 
             if (error) {
                 msg.className = "mt-4 p-3 rounded-lg text-sm bg-red-100 text-red-800 block";
-                if (error.code === '23505') {
-                    msg.textContent = "⚠️ Este número de documento o este nombre ya se encuentran registrados.";
-                } else {
-                    msg.textContent = "Hubo un error al guardar los datos. Es posible que el documento ya exista.";
-                    console.error(error);
-                }
+                msg.textContent = "Hubo un error al guardar. Es posible que el documento ya esté en uso.";
+                console.error(error);
             } else {
                 msg.className = "mt-4 p-3 rounded-lg text-sm bg-emerald-100 text-emerald-800 block";
-                msg.textContent = `¡Datos guardados exitosamente en la nube para ${nombre}!`;
+                msg.textContent = `¡Datos guardados con éxito para ${nombre}!`;
                 
                 setTimeout(() => {
                     document.getElementById('registroForm').reset();
@@ -235,9 +349,15 @@
             }
         });
 
+        // Mostrar solo los registros del curso actual en el panel
         async function actualizarTabla() {
-            const { data, error } = await _supabase.from('Estudiantes').select('*').order('nombre', { ascending: true });
-            
+            const cursoActual = obtenerCursoActual();
+            const { data, error } = await _supabase
+                .from('Estudiantes')
+                .select('*')
+                .eq('curso_id', cursoActual)
+                .order('nombre', { ascending: true });
+
             const tbody = document.getElementById('cuerpoTabla');
             tbody.innerHTML = "";
             
@@ -252,9 +372,24 @@
                     <td class="p-2.5">${item.num_doc || ''}</td>
                     <td class="p-2.5">${item.telefono || ''}</td>
                     <td class="p-2.5">${item.correo || ''}</td>
+                    <td class="p-2.5 text-center">
+                        <button onclick="eliminarEstudiante('${item.nombre}')" class="bg-red-500 text-white px-2 py-1 rounded text-xs hover:bg-red-600">🗑️</button>
+                    </td>
                 `;
                 tbody.appendChild(tr);
             });
+        }
+
+        async function eliminarEstudiante(nombre) {
+            if (confirm(`¿Estás seguro de eliminar el registro de ${nombre}?`)) {
+                const { error } = await _supabase.from('Estudiantes').delete().eq('nombre', nombre);
+                if (error) {
+                    alert("No se pudo eliminar.");
+                } else {
+                    await actualizarTabla();
+                    await cargarNombresComboBox();
+                }
+            }
         }
 
         async function verificarClave() {
@@ -275,8 +410,15 @@
             document.getElementById('errorClave').classList.add('hidden');
         }
 
+        // Descargar Excel filtrado exclusivamente por el curso activo
         async function descargarExcel() {
-            const { data, error } = await _supabase.from('Estudiantes').select('*').order('nombre', { ascending: true });
+            const cursoActual = obtenerCursoActual();
+            const { data, error } = await _supabase
+                .from('Estudiantes')
+                .select('*')
+                .eq('curso_id', cursoActual)
+                .order('nombre', { ascending: true });
+
             if (error || !data) {
                 alert("No se pudieron cargar los datos para exportar.");
                 return;
@@ -284,16 +426,16 @@
 
             let dataExport = data.map(r => ({
                 "Nombre del Estudiante": r.nombre,
-                "Tipo de Documento": r.tipo_doc,
-                "Número de Documento": r.num_doc,
-                "Número de Teléfono": r.telefono,
-                "Correo Electrónico": r.correo
+                "Tipo de Documento": r.tipo_doc || "",
+                "Número de Documento": r.num_doc || "",
+                "Número de Teléfono": r.telefono || "",
+                "Correo Electrónico": r.correo || ""
             }));
 
             let worksheet = XLSX.utils.json_to_sheet(dataExport);
             let workbook = XLSX.utils.book_new();
             XLSX.utils.book_append_sheet(workbook, worksheet, "Estudiantes");
-            XLSX.writeFile(workbook, "Listado_Estudiantes_Cloud.xlsx");
+            XLSX.writeFile(workbook, `Listado_${cursoActual}.xlsx`);
         }
     </script>
 </body>
