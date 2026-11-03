@@ -70,7 +70,8 @@
             <h2 class="text-base font-bold text-slate-800 mb-1">🔒 Panel del Instructor & Configuración</h2>
             <p class="text-xs text-slate-600 mb-2">Ingresa tu contraseña para gestionar listados, aislar por curso y ver registros.</p>
             <div class="flex gap-2">
-                <input type="password" id="claveInstructor" placeholder="Contraseña" class="border border-slate-300 rounded-lg p-2 text-sm flex-1">
+                <!-- Se agregó el evento onkeydown para permitir Enter -->
+                <input type="password" id="claveInstructor" placeholder="Contraseña" onkeydown="manejarEnter(event)" class="border border-slate-300 rounded-lg p-2 text-sm flex-1">
                 <button onclick="verificarClave()" class="bg-slate-800 text-white font-medium px-4 py-2 rounded-lg hover:bg-slate-900 transition text-sm">Acceder</button>
             </div>
             <p id="errorClave" class="text-red-500 text-xs mt-2 hidden">Contraseña incorrecta.</p>
@@ -149,9 +150,16 @@
             return localStorage.getItem('curso_id_activo') || 'general';
         }
 
-        window.addEventListener('DOMContentLoaded', () => {
+        window.addEventListener('DOMContentLoaded', async () => {
             cargarConfigVisualLocal();
             cargarNombresComboBoxDesdeLocal();
+
+            // Verificar si el instructor ya había iniciado sesión antes de recargar la página
+            if (sessionStorage.getItem('instructor_activo') === 'true') {
+                document.getElementById('loginInstructor').classList.add('hidden');
+                document.getElementById('panelProtegido').classList.remove('hidden');
+                await actualizarTabla();
+            }
         });
 
         function cargarConfigVisualLocal() {
@@ -182,6 +190,7 @@
         function nuevoCurso() {
             if (confirm("¿Deseas limpiar los campos para configurar un nuevo curso o colegio?")) {
                 localStorage.removeItem('curso_id_activo');
+                sessionStorage.removeItem('instructor_activo');
                 document.getElementById('inputCursoId').value = "";
                 document.getElementById('inputTitulo').value = "";
                 document.getElementById('inputLogoFile').value = "";
@@ -221,12 +230,10 @@
                 }
             }
 
-            cargarConfigVisualLocal();
             alert("¡Configuración guardada con éxito!");
             location.reload();
         }
 
-        // Cargar nombres al ComboBox leyendo estrictamente desde la memoria local del navegador
         function cargarNombresComboBoxDesdeLocal() {
             const cursoActual = obtenerCursoActual();
             const nombresGuardados = JSON.parse(localStorage.getItem(`nombres_curso_${cursoActual}`) || "[]");
@@ -242,7 +249,6 @@
             });
         }
 
-        // Leer Excel y guardar la lista de nombres localmente para el ComboBox
         function cargarListadoExcel() {
             const cursoActual = obtenerCursoActual();
             if (cursoActual === 'general' || !cursoActual) {
@@ -274,10 +280,7 @@
                     }
                 });
 
-                // Ordenar alfabéticamente
                 listaNombres.sort();
-
-                // Guardar en la memoria local del navegador específica para este curso
                 localStorage.setItem(`nombres_curso_${cursoActual}`, JSON.stringify(listaNombres));
 
                 alert(`¡Se cargaron ${listaNombres.length} nombres correctamente para el curso "${cursoActual}"!`);
@@ -346,7 +349,6 @@
             }
         }
 
-        // Cuando el estudiante llena el formulario y da Registrar, ahí se envía a la base de datos
         document.getElementById('registroForm').addEventListener('submit', async function(e) {
             e.preventDefault();
             const cursoActual = obtenerCursoActual();
@@ -362,7 +364,6 @@
                 return;
             }
 
-            // Insertar directamente el registro completo en la base de datos de Supabase
             const { error } = await _supabase
                 .from('Estudiantes')
                 .insert({ 
@@ -379,7 +380,7 @@
                 if (error.code === '23505') {
                     msg.textContent = "⚠️ Este número de documento o este estudiante ya se encuentra registrado.";
                 } else {
-                    msg.textContent = "Hubo un error al guardar los datos. Es posible que ya exista un registro previo.";
+                    msg.textContent = "Hubo un error al guardar los datos.";
                     console.error(error);
                 }
             } else {
@@ -439,9 +440,18 @@
             }
         }
 
+        // Permitir iniciar sesión presionando Enter
+        function manejarEnter(event) {
+            if (event.key === 'Enter') {
+                verificarClave();
+            }
+        }
+
         async function verificarClave() {
             const claveIngresada = document.getElementById('claveInstructor').value;
             if (claveIngresada === CONTRASENA_SECRETA) {
+                // Guardar sesión activa en el navegador
+                sessionStorage.setItem('instructor_activo', 'true');
                 document.getElementById('loginInstructor').classList.add('hidden');
                 document.getElementById('panelProtegido').classList.remove('hidden');
                 await actualizarTabla();
@@ -451,6 +461,7 @@
         }
 
         function cerrarPanel() {
+            sessionStorage.removeItem('instructor_activo');
             document.getElementById('panelProtegido').classList.add('hidden');
             document.getElementById('loginInstructor').classList.remove('hidden');
             document.getElementById('claveInstructor').value = "";
