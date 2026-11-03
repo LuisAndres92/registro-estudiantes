@@ -78,16 +78,19 @@
 
         <div id="panelProtegido" class="hidden mt-4 space-y-6">
             <div class="bg-blue-50 border border-blue-200 p-4 rounded-lg space-y-4">
-                <h3 class="text-sm font-bold text-blue-900">⚙️ Configuración del Curso Actual</h3>
+                <div class="flex justify-between items-center">
+                    <h3 class="text-sm font-bold text-blue-900">⚙️ Configuración del Curso Actual</h3>
+                    <button onclick="nuevoCurso()" class="bg-amber-600 text-white font-medium px-3 py-1 rounded hover:bg-amber-700 transition text-xs">🔄 Nuevo Curso / Limpiar</button>
+                </div>
                 
                 <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
                     <div>
                         <label class="block font-semibold text-slate-700 mb-1">ID del Curso / Colegio (Sin espacios):</label>
-                        <input type="text" id="inputCursoId" class="border border-slate-300 rounded p-2 w-full bg-white font-bold text-blue-800" placeholder="ej. juan_mejia_2026">
+                        <input type="text" id="inputCursoId" class="border border-slate-300 rounded p-2 w-full bg-white font-bold text-blue-800" placeholder="ej. juanmejia2026">
                     </div>
                     <div>
                         <label class="block font-semibold text-slate-700 mb-1">Título de la Institución:</label>
-                        <input type="text" id="inputTitulo" class="border border-slate-300 rounded p-2 w-full bg-white" placeholder="Ej. I.E. Juan Mejia Gomez">
+                        <input type="text" id="inputTitulo" class="border border-slate-300 rounded p-2 w-full bg-white" placeholder="Ej. Juan Mejia Gomez">
                     </div>
                 </div>
 
@@ -103,7 +106,7 @@
                 <div>
                     <label class="block font-semibold text-slate-700 mb-1 text-xs">📂 Cargar Listado de Estudiantes (Excel):</label>
                     <input type="file" id="excelFile" accept=".xlsx, .xls, .csv" class="text-xs text-slate-600 mb-2">
-                    <button onclick="cargarListadoExcel()" class="bg-indigo-600 text-white font-medium px-3 py-1.5 rounded hover:bg-indigo-700 transition text-xs">📤 Subir Estudiantes al Curso Actual</button>
+                    <button onclick="cargarListadoExcel()" class="bg-indigo-600 text-white font-medium px-3 py-1.5 rounded hover:bg-indigo-700 transition text-xs">📤 Subir Nombres al Curso Actual</button>
                 </div>
             </div>
 
@@ -153,14 +156,19 @@
 
         function cargarConfigVisualLocal() {
             const cursoId = obtenerCursoActual();
-            const titulo = localStorage.getItem(`inst_titulo_${cursoId}`) || "Portal de Registro";
+            const titulo = localStorage.getItem(`inst_titulo_${cursoId}`) || "";
             const logo = localStorage.getItem(`inst_logo_${cursoId}`) || "";
 
-            document.getElementById('tituloInstitucion').textContent = titulo;
+            if (titulo) {
+                document.getElementById('tituloInstitucion').textContent = titulo;
+                document.getElementById('inputTitulo').value = titulo;
+            } else {
+                document.getElementById('tituloInstitucion').textContent = "Portal de Registro";
+                document.getElementById('inputTitulo').value = "";
+            }
+
             document.getElementById('subtituloCurso').textContent = `Curso / Grupo activo: ${cursoId}`;
-            
             document.getElementById('inputCursoId').value = cursoId === 'general' ? '' : cursoId;
-            document.getElementById('inputTitulo').value = titulo === "Portal de Registro" ? '' : titulo;
             
             const imgEl = document.getElementById('logoInstitucion');
             if (logo) {
@@ -168,6 +176,20 @@
                 imgEl.classList.remove('hidden');
             } else {
                 imgEl.classList.add('hidden');
+            }
+        }
+
+        function nuevoCurso() {
+            if (confirm("¿Deseas limpiar los campos para configurar un nuevo curso o colegio?")) {
+                localStorage.removeItem('curso_id_activo');
+                document.getElementById('inputCursoId').value = "";
+                document.getElementById('inputTitulo').value = "";
+                document.getElementById('inputLogoFile').value = "";
+                document.getElementById('tituloInstitucion').textContent = "Portal de Registro";
+                document.getElementById('subtituloCurso').textContent = "Curso / Grupo activo: general";
+                document.getElementById('logoInstitucion').classList.add('hidden');
+                alert("Campos limpios. Escribe el nuevo ID de curso y título, guarda y sube el nuevo Excel.");
+                location.reload();
             }
         }
 
@@ -186,13 +208,12 @@
                 localStorage.setItem(`inst_titulo_${nuevoCursoId}`, nuevoTitulo);
             }
 
-            // Si subió un archivo de logo, lo guardamos en el Storage de Supabase
             if (logoFile) {
                 const fileName = `${nuevoCursoId}_${Date.now()}_${logoFile.name}`;
-                const { data, error } = await _supabase.storage.from('logos').upload(fileName, logoFile);
+                const { error } = await _supabase.storage.from('logos').upload(fileName, logoFile);
 
                 if (error) {
-                    alert("Hubo un error al subir la imagen del logo. Asegúrate de haber creado el bucket 'logos' en Supabase.");
+                    alert("Error al subir la imagen. Verifica que el bucket 'logos' tenga la política 'INSERT' habilitada en Supabase.");
                     console.error(error);
                 } else {
                     const { data: publicURL } = _supabase.storage.from('logos').getPublicUrl(fileName);
@@ -205,6 +226,7 @@
             location.reload();
         }
 
+        // Cargar nombres para el ComboBox (solo los que pertenecen al curso activo)
         async function cargarNombresComboBox() {
             const cursoActual = obtenerCursoActual();
             const { data, error } = await _supabase
@@ -226,8 +248,14 @@
             });
         }
 
+        // Cargar Excel: Inserta los nombres vacíos a la base de datos para que aparezcan en el ComboBox
         async function cargarListadoExcel() {
             const cursoActual = obtenerCursoActual();
+            if (cursoActual === 'general' || !cursoActual) {
+                alert("Por favor define primero un 'ID del Curso' válido y guárdalo antes de subir el Excel.");
+                return;
+            }
+
             const fileInput = document.getElementById('excelFile');
             if (fileInput.files.length === 0) {
                 alert("Por favor selecciona un archivo Excel primero.");
@@ -249,15 +277,26 @@
                     const nombreEst = row['Nombre'] || row['NOMBRE'] || row['Estudiante'] || row['ESTUDIANTE'] || Object.values(row)[0];
                     
                     if (nombreEst) {
-                        await _supabase.from('Estudiantes').upsert({ 
-                            nombre: String(nombreEst).trim().toUpperCase(),
-                            curso_id: cursoActual 
-                        }, { onConflict: 'nombre' });
-                        count++;
+                        const nombreLimpio = String(nombreEst).trim().toUpperCase();
+                        // Verificamos si ya existe en este curso para no duplicar filas vacías
+                        const { data: existe } = await _supabase
+                            .from('Estudiantes')
+                            .select('nombre')
+                            .eq('nombre', nombreLimpio)
+                            .eq('curso_id', cursoActual)
+                            .maybeSingle();
+
+                        if (!existe) {
+                            await _supabase.from('Estudiantes').insert({ 
+                                nombre: nombreLimpio,
+                                curso_id: cursoActual 
+                            });
+                            count++;
+                        }
                     }
                 }
 
-                alert(`¡Se cargaron ${count} estudiantes al curso "${cursoActual}" con éxito!`);
+                alert(`¡Se cargaron ${count} nombres nuevos al curso "${cursoActual}" con éxito!`);
                 await cargarNombresComboBox();
                 fileInput.value = "";
             };
@@ -323,6 +362,7 @@
             }
         }
 
+        // Al enviar el formulario, actualiza el registro existente del estudiante con sus datos completos
         document.getElementById('registroForm').addEventListener('submit', async function(e) {
             e.preventDefault();
             const nombre = document.getElementById('nombre').value;
@@ -337,6 +377,7 @@
                 return;
             }
 
+            // Actualizamos la fila que ya vino precargada desde el Excel
             const { error } = await _supabase
                 .from('Estudiantes')
                 .update({ tipo_doc, num_doc, telefono, correo })
@@ -344,7 +385,7 @@
 
             if (error) {
                 msg.className = "mt-4 p-3 rounded-lg text-sm bg-red-100 text-red-800 block";
-                msg.textContent = "Hubo un error al guardar. Es posible que el documento ya esté en uso.";
+                msg.textContent = "Hubo un error al guardar. Es posible que el documento ya esté en uso por otra persona.";
                 console.error(error);
             } else {
                 msg.className = "mt-4 p-3 rounded-lg text-sm bg-emerald-100 text-emerald-800 block";
