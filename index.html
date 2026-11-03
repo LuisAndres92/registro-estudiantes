@@ -169,7 +169,7 @@
             }
         }
 
-        // Enviar datos validando duplicados por número de documento o nombre
+        // Enviar datos aplicando validación estricta
         document.getElementById('registroForm').addEventListener('submit', async function(e) {
             e.preventDefault();
             const nombre = document.getElementById('nombre').value;
@@ -184,41 +184,20 @@
                 return;
             }
 
-            // 1. Verificar si este número de documento ya está registrado en la base de datos
-            const { data: docExistente, error: errorDoc } = await _supabase
-                .from('Estudiantes')
-                .select('*')
-                .eq('num_doc', num_doc)
-                .maybeSingle();
-
-            if (docExistente) {
-                msg.className = "mt-4 p-3 rounded-lg text-sm bg-amber-100 text-amber-800 block";
-                msg.textContent = `⚠️ Este número de documento (${num_doc}) ya se encuentra registrado en el sistema.`;
-                return;
-            }
-
-            // 2. Verificar si el nombre seleccionado ya tiene datos guardados
-            const { data: nombreExistente, error: errorNombre } = await _supabase
-                .from('Estudiantes')
-                .select('*')
-                .eq('nombre', nombre)
-                .maybeSingle();
-
-            if (nombreExistente && nombreExistente.num_doc) {
-                msg.className = "mt-4 p-3 rounded-lg text-sm bg-amber-100 text-amber-800 block";
-                msg.textContent = `⚠️ El estudiante "${nombre}" ya cuenta con un registro completado.`;
-                return;
-            }
-
-            // 3. Insertar el nuevo registro limpio
+            // Insertar directamente usando .insert()
             const { error } = await _supabase
                 .from('Estudiantes')
                 .insert({ nombre, tipo_doc, num_doc, telefono, correo });
 
             if (error) {
                 msg.className = "mt-4 p-3 rounded-lg text-sm bg-red-100 text-red-800 block";
-                msg.textContent = "Hubo un error al guardar los datos. Es posible que el documento ya exista.";
-                console.error(error);
+                // Si Supabase detecta duplicado (violación de llave única)
+                if (error.code === '23505') {
+                    msg.textContent = "⚠️ Este estudiante o número de documento ya se encuentra registrado en el sistema.";
+                } else {
+                    msg.textContent = "Hubo un error al guardar los datos. Es posible que el registro ya exista.";
+                    console.error(error);
+                }
             } else {
                 msg.className = "mt-4 p-3 rounded-lg text-sm bg-emerald-100 text-emerald-800 block";
                 msg.textContent = `¡Datos guardados exitosamente en la nube para ${nombre}!`;
