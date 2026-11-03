@@ -158,7 +158,7 @@
         const CONTRASENA_SECRETA = "profe123"; 
 
         function obtenerCursoActual() {
-            return localStorage.getItem('curso_id_activo') || 'juanmejia2026'; // Predeterminado para tus pruebas
+            return localStorage.getItem('curso_id_activo') || 'juanmejia2026';
         }
 
         window.addEventListener('DOMContentLoaded', async () => {
@@ -173,10 +173,9 @@
             }
         });
 
-        // Descargar la configuración visual directamente desde Supabase
         async function cargarConfiguracionNube() {
             const cursoId = obtenerCursoActual();
-            const { data, error } = await _supabase
+            const { data } = await _supabase
                 .from('Configuracion')
                 .select('*')
                 .eq('curso_id', cursoId)
@@ -202,7 +201,6 @@
             }
         }
 
-        // Cargar los nombres desde la tabla Configuracion en Supabase
         async function cargarNombresComboBoxNube() {
             const cursoId = obtenerCursoActual();
             const { data } = await _supabase
@@ -215,13 +213,16 @@
             selectNombre.innerHTML = '<option value="">-- Selecciona tu nombre --</option>';
 
             if (data && data.nombres) {
-                let nombres = data.nombres;
-                nombres.forEach(nombre => {
-                    let opt = document.createElement('option');
-                    opt.value = nombre;
-                    opt.textContent = nombre;
-                    selectNombre.appendChild(opt);
-                });
+                // Si viene como string o jsonb, aseguramos parsearlo bien
+                let nombres = typeof data.nombres === 'string' ? JSON.parse(data.nombres) : data.nombres;
+                if (Array.isArray(nombres)) {
+                    nombres.forEach(nombre => {
+                        let opt = document.createElement('option');
+                        opt.value = nombre;
+                        opt.textContent = nombre;
+                        selectNombre.appendChild(opt);
+                    });
+                }
             }
         }
 
@@ -278,7 +279,6 @@
             }
         }
 
-        // Guardar título, logo y curso directamente en Supabase
         async function guardarConfiguracion() {
             const nuevoCursoId = document.getElementById('inputCursoId').value.trim().toLowerCase().replace(/\s+/g, '_');
             const nuevoTitulo = document.getElementById('inputTitulo').value.trim();
@@ -290,17 +290,16 @@
             }
 
             let logoUrlFinal = "";
-            // Buscar si ya tiene logo guardado en la nube
             const { data: cursoActualData } = await _supabase.from('Configuracion').select('logo_url').eq('curso_id', nuevoCursoId).maybeSingle();
             if (cursoActualData) logoUrlFinal = cursoActualData.logo_url;
 
             if (logoFile) {
                 const fileName = `${nuevoCursoId}_${Date.now()}_${logoFile.name}`;
-                const { error } = await _supabase.storage.from('logos').upload(fileName, logoFile);
+                const { error: errorUpload } = await _supabase.storage.from('logos').upload(fileName, logoFile);
 
-                if (error) {
-                    alert("Error al subir la imagen. Verifica el bucket 'logos' en Supabase.");
-                    console.error(error);
+                if (errorUpload) {
+                    alert("Error al subir la imagen al Storage. Verifica las políticas del bucket 'logos'.");
+                    console.error(errorUpload);
                     return;
                 } else {
                     const { data: publicURL } = _supabase.storage.from('logos').getPublicUrl(fileName);
@@ -308,15 +307,19 @@
                 }
             }
 
-            // Upsert en la tabla Configuracion de Supabase
+            // Mantenemos los nombres que ya existían si ya estaban cargados
+            const { data: cursoPrevio } = await _supabase.from('Configuracion').select('nombres').eq('curso_id', nuevoCursoId).maybeSingle();
+            let nombresActuales = cursoPrevio ? cursoPrevio.nombres : [];
+
             const { error: errorUpsert } = await _supabase.from('Configuracion').upsert({
                 curso_id: nuevoCursoId,
                 titulo: nuevoTitulo,
-                logo_url: logoUrlFinal
+                logo_url: logoUrlFinal,
+                nombres: nombresActuales
             }, { onConflict: 'curso_id' });
 
             if (errorUpsert) {
-                alert("Hubo un error al guardar en la nube.");
+                alert("Error al guardar en la tabla Configuracion: " + errorUpsert.message);
                 console.error(errorUpsert);
             } else {
                 localStorage.setItem('curso_id_activo', nuevoCursoId);
@@ -325,7 +328,6 @@
             }
         }
 
-        // Subir Excel y guardar la lista de nombres en Supabase
         async function cargarListadoExcel() {
             const inputCursoField = document.getElementById('inputCursoId').value.trim().toLowerCase().replace(/\s+/g, '_');
 
@@ -362,14 +364,21 @@
 
                 listaNombres.sort();
 
-                // Actualizar la lista de nombres en la tabla Configuracion de Supabase
+                // Traer datos previos para no borrar el título o el logo si ya estaban
+                const { data: cursoPrevio } = await _supabase.from('Configuracion').select('*').eq('curso_id', inputCursoField).maybeSingle();
+                
+                let tituloActual = cursoPrevio ? cursoPrevio.titulo : "";
+                let logoActual = cursoPrevio ? cursoPrevio.logo_url : "";
+
                 const { error } = await _supabase.from('Configuracion').upsert({
                     curso_id: inputCursoField,
+                    titulo: tituloActual,
+                    logo_url: logoActual,
                     nombres: listaNombres
                 }, { onConflict: 'curso_id' });
 
                 if (error) {
-                    alert("Error al guardar los nombres en la nube.");
+                    alert("Error al guardar los nombres en la nube: " + error.message);
                     console.error(error);
                 } else {
                     alert(`¡Se cargaron y sincronizaron ${listaNombres.length} nombres en la nube para el curso "${inputCursoField}"!`);
@@ -484,6 +493,7 @@
                     document.getElementById('block-correo').classList.add('hidden');
                     document.getElementById('alertaDoc').classList.add('hidden');
                     msg.classList.add('hidden');
+                    location.reload();
                 }, 3000);
             }
         });
