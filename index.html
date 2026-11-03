@@ -15,7 +15,7 @@
         <!-- Cabecera Dinámica Institucional -->
         <div class="text-center mb-6">
             <img id="logoInstitucion" src="" alt="Logo" class="w-24 h-24 mx-auto mb-3 object-contain rounded-full border-2 border-slate-200 hidden">
-            <h1 id="tituloInstitucion" class="text-2xl font-bold text-slate-800">📋 Portal de Registro</h1>
+            <h1 id="tituloInstitucion" class="text-2xl font-bold text-slate-800">Portal de Registro</h1>
             <p id="subtituloCurso" class="text-slate-600 text-sm mt-1">Selecciona tu nombre y completa los campos progresivamente.</p>
         </div>
 
@@ -87,7 +87,7 @@
                     </div>
                     <div>
                         <label class="block font-semibold text-slate-700 mb-1">Título de la Institución:</label>
-                        <input type="text" id="inputTitulo" class="border border-slate-300 rounded p-2 w-full bg-white" placeholder="Ej. I.E. JUAN MEJIA GOMEZ">
+                        <input type="text" id="inputTitulo" class="border border-slate-300 rounded p-2 w-full bg-white" placeholder="Ej. I.E. Juan Mejia Gomez">
                     </div>
                 </div>
 
@@ -153,14 +153,14 @@
 
         function cargarConfigVisualLocal() {
             const cursoId = obtenerCursoActual();
-            const titulo = localStorage.getItem(`inst_titulo_${cursoId}`) || "📋 Portal de Registro de Estudiantes";
+            const titulo = localStorage.getItem(`inst_titulo_${cursoId}`) || "Portal de Registro";
             const logo = localStorage.getItem(`inst_logo_${cursoId}`) || "";
 
             document.getElementById('tituloInstitucion').textContent = titulo;
             document.getElementById('subtituloCurso').textContent = `Curso / Grupo activo: ${cursoId}`;
             
-            document.getElementById('inputCursoId').value = cursoId;
-            document.getElementById('inputTitulo').value = titulo.replace("📋 ", "");
+            document.getElementById('inputCursoId').value = cursoId === 'general' ? '' : cursoId;
+            document.getElementById('inputTitulo').value = titulo === "Portal de Registro" ? '' : titulo;
             
             const imgEl = document.getElementById('logoInstitucion');
             if (logo) {
@@ -182,7 +182,9 @@
             }
 
             localStorage.setItem('curso_id_activo', nuevoCursoId);
-            localStorage.setItem(`inst_titulo_${nuevoCursoId}`, "📋 " + nuevoTitulo);
+            if (nuevoTitulo) {
+                localStorage.setItem(`inst_titulo_${nuevoCursoId}`, nuevoTitulo);
+            }
 
             // Si subió un archivo de logo, lo guardamos en el Storage de Supabase
             if (logoFile) {
@@ -190,10 +192,9 @@
                 const { data, error } = await _supabase.storage.from('logos').upload(fileName, logoFile);
 
                 if (error) {
-                    alert("Hubo un error al subir la imagen del logo.");
+                    alert("Hubo un error al subir la imagen del logo. Asegúrate de haber creado el bucket 'logos' en Supabase.");
                     console.error(error);
                 } else {
-                    // Obtener URL pública de la imagen
                     const { data: publicURL } = _supabase.storage.from('logos').getPublicUrl(fileName);
                     localStorage.setItem(`inst_logo_${nuevoCursoId}`, publicURL.publicUrl);
                 }
