@@ -1,0 +1,174 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Registro de Estudiantes</title>
+    <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-slate-50 min-h-screen py-10 px-4">
+    <div class="max-w-3xl mx-auto bg-white rounded-xl shadow-md overflow-hidden p-6 sm:p-8">
+        <h1 class="text-2xl font-bold text-slate-800 mb-2">📋 Registro de Datos - Estudiantes</h1>
+        <p class="text-slate-600 mb-6">Selecciona tu nombre del listado, completa tus datos y haz clic en registrar.</p>
+
+        <form id="registroForm" class="space-y-4">
+            <div>
+                <label class="block text-sm font-medium text-slate-700 mb-1">Selecciona tu Nombre:</label>
+                <select id="nombre" required class="w-full border border-slate-300 rounded-lg p-2.5 bg-white text-slate-800 focus:ring-2 focus:ring-blue-500">
+                    <option value="">-- Selecciona tu nombre --</option>
+                </select>
+            </div>
+
+            <div>
+                <label class="block text-sm font-medium text-slate-700 mb-1">Tipo de Documento:</label>
+                <select id="tipoDoc" required class="w-full border border-slate-300 rounded-lg p-2.5 bg-white text-slate-800 focus:ring-2 focus:ring-blue-500">
+                    <option value="Cédula de Ciudadanía">Cédula de Ciudadanía</option>
+                    <option value="Tarjeta de Identidad">Tarjeta de Identidad</option>
+                    <option value="Cédula de Extranjería">Cédula de Extranjería</option>
+                    <option value="Permiso por Protección Temporal (PPT)">Permiso por Protección Temporal (PPT)</option>
+                </select>
+            </div>
+
+            <div>
+                <label class="block text-sm font-medium text-slate-700 mb-1">Número de Documento:</label>
+                <input type="text" id="numDoc" required class="w-full border border-slate-300 rounded-lg p-2.5 text-slate-800 focus:ring-2 focus:ring-blue-500" placeholder="Ej. 1065...">
+            </div>
+
+            <div>
+                <label class="block text-sm font-medium text-slate-700 mb-1">Número de Teléfono / Celular:</label>
+                <input type="tel" id="telefono" required class="w-full border border-slate-300 rounded-lg p-2.5 text-slate-800 focus:ring-2 focus:ring-blue-500" placeholder="Ej. 3001234567">
+            </div>
+
+            <div>
+                <label class="block text-sm font-medium text-slate-700 mb-1">Correo Electrónico:</label>
+                <input type="email" id="correo" required class="w-full border border-slate-300 rounded-lg p-2.5 text-slate-800 focus:ring-2 focus:ring-blue-500" placeholder="correo@ejemplo.com">
+            </div>
+
+            <button type="submit" class="w-full bg-blue-600 text-white font-medium py-2.5 rounded-lg hover:bg-blue-700 transition">
+                Guardar Mis Datos
+            </button>
+        </form>
+
+        <div id="mensaje" class="mt-4 hidden p-3 rounded-lg text-sm"></div>
+
+        <hr class="my-8">
+
+        <div class="flex justify-between items-center mb-4">
+            <h2 class="text-lg font-bold text-slate-800">Panel del Instructor</h2>
+            <button onclick="descargarExcel()" class="bg-emerald-600 text-white font-medium px-4 py-2 rounded-lg hover:bg-emerald-700 transition text-sm flex items-center gap-2">
+                📥 Descargar Excel Consolidado
+            </button>
+        </div>
+
+        <div class="overflow-x-auto border border-slate-200 rounded-lg">
+            <table id="tablaEstudiantes" class="w-full text-left border-collapse text-sm">
+                <thead class="bg-slate-100 text-slate-700">
+                    <tr>
+                        <th class="p-3 border-b">Nombre del Estudiante</th>
+                        <th class="p-3 border-b">Tipo Doc.</th>
+                        <th class="p-3 border-b">N° Documento</th>
+                        <th class="p-3 border-b">Teléfono</th>
+                        <th class="p-3 border-b">Correo</th>
+                    </tr>
+                </thead>
+                <tbody id="cuerpoTabla" class="text-slate-600"></tbody>
+            </table>
+        </div>
+    </div>
+
+    <script>
+        const estudiantes = [
+            "ALEJANDRO ADOLFO ARAUJO FONSECA",
+            "CRISTIAN ROJAS VILLALOBOS",
+            "CRISTIAN DE JESUS MIELES CADENA",
+            "EDILBERTO DIAZ PEÑA",
+            "FERNANDO ENRIQUE CASTRILLO ROMERO",
+            "JESUS MANUEL TORRES MEJIA",
+            "JUAN CAMILO MORENO PISCIOTTY",
+            "KAROLL KATTIER FUENTES ACUÑA",
+            "MANUEL ALEJANDRO MADERO MOLINA",
+            "MARIA CAMILA FLOREZ CASTILLEJO",
+            "RAUL SANTIAGO MENESES TAPIAS",
+            "SAMUEL DAVID OCHOA ELIAS",
+            "SERGIO ANDRES DUQUE DITTA",
+            "SHARICK SOFIA HERRERA TORRES",
+            "SHARITH DAYANA TURIZO MARTINEZ",
+            "YOVANI ANDRES MONTERO GARCIA",
+            "YURLEY CENITH DITTA MANCILLA"
+        ];
+
+        let registros = JSON.parse(localStorage.getItem('registros_estudiantes')) || estudiantes.map(nombre => ({
+            nombre: nombre,
+            tipoDoc: "",
+            numDoc: "",
+            telefono: "",
+            correo: ""
+        }));
+
+        const selectNombre = document.getElementById('nombre');
+        estudiantes.forEach(nombre => {
+            let opt = document.createElement('option');
+            opt.value = nombre;
+            opt.textContent = nombre;
+            selectNombre.appendChild(opt);
+        });
+
+        function actualizarTabla() {
+            const tbody = document.getElementById('cuerpoTabla');
+            tbody.innerHTML = "";
+            registros.forEach(item => {
+                let tr = document.createElement('tr');
+                tr.className = "border-b hover:bg-slate-50";
+                tr.innerHTML = `
+                    <td class="p-3 font-medium text-slate-800">${item.nombre}</td>
+                    <td class="p-3">${item.tipoDoc}</td>
+                    <td class="p-3">${item.numDoc}</td>
+                    <td class="p-3">${item.telefono}</td>
+                    <td class="p-3">${item.correo}</td>
+                `;
+                tbody.appendChild(tr);
+            });
+            localStorage.setItem('registros_estudiantes', JSON.stringify(registros));
+        }
+
+        document.getElementById('registroForm').addEventListener('submit', function(e) {
+            e.preventDefault();
+            const nombre = document.getElementById('nombre').value;
+            const tipoDoc = document.getElementById('tipoDoc').value;
+            const numDoc = document.getElementById('numDoc').value;
+            const telefono = document.getElementById('telefono').value;
+            const correo = document.getElementById('correo').value;
+
+            let idx = registros.findIndex(r => r.nombre === nombre);
+            if (idx !== -1) {
+                registros[idx] = { nombre, tipoDoc, numDoc, telefono, correo };
+                actualizarTabla();
+                
+                const msg = document.getElementById('mensaje');
+                msg.className = "mt-4 p-3 rounded-lg text-sm bg-emerald-100 text-emerald-800 block";
+                msg.textContent = `¡Datos guardados exitosamente para ${nombre}!`;
+                
+                document.getElementById('registroForm').reset();
+            }
+        });
+
+        function descargarExcel() {
+            let dataExport = registros.map(r => ({
+                "Nombre del Estudiante": r.nombre,
+                "Tipo de Documento": r.tipoDoc,
+                "Número de Documento": r.numDoc,
+                "Número de Teléfono": r.telefono,
+                "Correo Electrónico": r.correo
+            }));
+
+            let worksheet = XLSX.utils.json_to_sheet(dataExport);
+            let workbook = XLSX.utils.book_new();
+            XLSX.utils.book_append_sheet(workbook, worksheet, "Estudiantes");
+            XLSX.writeFile(workbook, "Listado_Estudiantes_Actualizado.xlsx");
+        }
+
+        actualizarTabla();
+    </script>
+</body>
+</html>
