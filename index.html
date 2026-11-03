@@ -4,8 +4,10 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Registro de Estudiantes</title>
+    <!-- Librerías de Excel, Tailwind y Supabase -->
     <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
     <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
 <body class="bg-slate-50 min-h-screen py-10 px-4">
     <div class="max-w-xl mx-auto bg-white rounded-xl shadow-md overflow-hidden p-6 sm:p-8">
@@ -60,7 +62,7 @@
         <!-- Panel del Instructor -->
         <div id="loginInstructor" class="bg-slate-100 p-4 rounded-lg">
             <h2 class="text-base font-bold text-slate-800 mb-1">🔒 Panel del Instructor</h2>
-            <p class="text-xs text-slate-600 mb-2">Ingresa tu contraseña para ver los registros y descargar el Excel.</p>
+            <p class="text-xs text-slate-600 mb-2">Ingresa tu contraseña para ver los registros en la nube y descargar el Excel.</p>
             <div class="flex gap-2">
                 <input type="password" id="claveInstructor" placeholder="Contraseña" class="border border-slate-300 rounded-lg p-2 text-sm flex-1">
                 <button onclick="verificarClave()" class="bg-slate-800 text-white font-medium px-4 py-2 rounded-lg hover:bg-slate-900 transition text-sm">Acceder</button>
@@ -70,7 +72,7 @@
 
         <div id="panelProtegido" class="hidden mt-4">
             <div class="flex justify-between items-center mb-3">
-                <h2 class="text-base font-bold text-slate-800">Listado Consolidado</h2>
+                <h2 class="text-base font-bold text-slate-800">Listado Consolidado (Nube)</h2>
                 <div class="flex gap-2">
                     <button onclick="descargarExcel()" class="bg-emerald-600 text-white font-medium px-3 py-1.5 rounded-lg hover:bg-emerald-700 transition text-xs">📥 Descargar Excel</button>
                     <button onclick="cerrarPanel()" class="bg-red-600 text-white font-medium px-3 py-1.5 rounded-lg hover:bg-red-700 transition text-xs">Bloquear</button>
@@ -94,6 +96,11 @@
     </div>
 
     <script>
+        // CONFIGURACIÓN DE SUPABASE (REEMPLAZA CON TUS DATOS)
+        const SUPABASE_URL = 'https://cdrbznqozzxwihusyzvx.supabase.co/rest/v1/Estudiantes';
+        const SUPABASE_ANON_KEY = 'cdrbznqozzxwihusyzvx';
+        const _supabase = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
         const CONTRASENA_SECRETA = "profe123"; 
 
         const estudiantes = [
@@ -115,10 +122,6 @@
             "YOVANI ANDRES MONTERO GARCIA",
             "YURLEY CENITH DITTA MANCILLA"
         ];
-
-        let registros = JSON.parse(localStorage.getItem('registros_estudiantes')) || estudiantes.map(nombre => ({
-            nombre: nombre, tipoDoc: "", numDoc: "", telefono: "", correo: ""
-        }));
 
         const selectNombre = document.getElementById('nombre');
         estudiantes.forEach(nombre => {
@@ -166,27 +169,32 @@
             }
         }
 
-        document.getElementById('registroForm').addEventListener('submit', function(e) {
+        // Enviar datos a la nube de Supabase
+        document.getElementById('registroForm').addEventListener('submit', async function(e) {
             e.preventDefault();
             const nombre = document.getElementById('nombre').value;
-            const tipoDoc = document.getElementById('tipoDoc').value;
-            const numDoc = document.getElementById('numDoc').value;
+            const tipo_doc = document.getElementById('tipoDoc').value;
+            const num_doc = document.getElementById('numDoc').value;
             const telefono = document.getElementById('telefono').value;
             const correo = document.getElementById('correo').value;
 
-            if (!nombre || !tipoDoc || !numDoc || !telefono || !correo) {
+            if (!nombre || !tipo_doc || !num_doc || !telefono || !correo) {
                 alert("Por favor completa todos los campos.");
                 return;
             }
 
-            let idx = registros.findIndex(r => r.nombre === nombre);
-            if (idx !== -1) {
-                registros[idx] = { nombre, tipoDoc, numDoc, telefono, correo };
-                localStorage.setItem('registros_estudiantes', JSON.stringify(registros));
-                
-                const msg = document.getElementById('mensaje');
+            // Guardar o actualizar en Supabase (Upsert basado en la clave primaria 'nombre')
+            const { error } = await _supabase
+                .from('estudiantes')
+                .upsert({ nombre, tipo_doc, num_doc, telefono, correo });
+
+            const msg = document.getElementById('mensaje');
+            if (error) {
+                msg.className = "mt-4 p-3 rounded-lg text-sm bg-red-100 text-red-800 block";
+                msg.textContent = "Hubo un error al guardar los datos. Inténtalo de nuevo.";
+            } else {
                 msg.className = "mt-4 p-3 rounded-lg text-sm bg-emerald-100 text-emerald-800 block";
-                msg.textContent = `¡Datos guardados exitosamente para ${nombre}!`;
+                msg.textContent = `¡Datos guardados exitosamente en la nube para ${nombre}!`;
                 
                 setTimeout(() => {
                     document.getElementById('registroForm').reset();
@@ -199,29 +207,34 @@
             }
         });
 
-        function actualizarTabla() {
+        async function actualizarTabla() {
+            const { data, error } = await _supabase.from('estudiantes').select('*').order('nombre', { ascending: true });
+            
             const tbody = document.getElementById('cuerpoTabla');
             tbody.innerHTML = "";
-            registros.forEach(item => {
+            
+            if (error || !data) return;
+
+            data.forEach(item => {
                 let tr = document.createElement('tr');
                 tr.className = "border-b hover:bg-slate-50";
                 tr.innerHTML = `
-                    <td class="p-2 font-medium text-slate-800">${item.nombre}</td>
-                    <td class="p-2">${item.tipoDoc}</td>
-                    <td class="p-2">${item.numDoc}</td>
-                    <td class="p-2">${item.telefono}</td>
-                    <td class="p-2">${item.correo}</td>
+                    <td class="p-2 font-medium text-slate-800">${item.nombre || ''}</td>
+                    <td class="p-2">${item.tipo_doc || ''}</td>
+                    <td class="p-2">${item.num_doc || ''}</td>
+                    <td class="p-2">${item.telefono || ''}</td>
+                    <td class="p-2">${item.correo || ''}</td>
                 `;
                 tbody.appendChild(tr);
             });
         }
 
-        function verificarClave() {
+        async function verificarClave() {
             const claveIngresada = document.getElementById('claveInstructor').value;
             if (claveIngresada === CONTRASENA_SECRETA) {
                 document.getElementById('loginInstructor').classList.add('hidden');
                 document.getElementById('panelProtegido').classList.remove('hidden');
-                actualizarTabla();
+                await actualizarTabla();
             } else {
                 document.getElementById('errorClave').classList.remove('hidden');
             }
@@ -234,18 +247,25 @@
             document.getElementById('errorClave').classList.add('hidden');
         }
 
-        function descargarExcel() {
-            let dataExport = registros.map(r => ({
+        async function descargarExcel() {
+            const { data, error } = await _supabase.from('estudiantes').select('*').order('nombre', { ascending: true });
+            if (error || !data) {
+                alert("No se pudieron cargar los datos para exportar.");
+                return;
+            }
+
+            let dataExport = data.map(r => ({
                 "Nombre del Estudiante": r.nombre,
-                "Tipo de Documento": r.tipoDoc,
-                "Número de Documento": r.numDoc,
+                "Tipo de Documento": r.tipo_doc,
+                "Número de Documento": r.num_doc,
                 "Número de Teléfono": r.telefono,
                 "Correo Electrónico": r.correo
             }));
+
             let worksheet = XLSX.utils.json_to_sheet(dataExport);
             let workbook = XLSX.utils.book_new();
             XLSX.utils.book_append_sheet(workbook, worksheet, "Estudiantes");
-            XLSX.writeFile(workbook, "Listado_Estudiantes_Actualizado.xlsx");
+            XLSX.writeFile(workbook, "Listado_Estudiantes_Cloud.xlsx");
         }
     </script>
 </body>
