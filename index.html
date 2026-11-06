@@ -15,7 +15,154 @@
     <link href="https://cdn.jsdelivr.net/npm/quill@1.3.7/dist/quill.snow.css" rel="stylesheet">
     <script src="https://cdn.jsdelivr.net/npm/quill@1.3.7/dist/quill.min.js"></script>
 </head>
-<body class="bg-slate-50 min-h-screen py-10 px-4">
+<body class="bg-slate-50 min-h-screen py-10 px-4 relative">
+
+    <!-- BOTÓN FLOTANTE DISCRETO PARA EL PROFESOR (Esquina inferior derecha) -->
+    <button onclick="abrirModalInstructor()" class="fixed bottom-5 right-5 bg-slate-800 text-white p-3 rounded-full shadow-2xl hover:bg-slate-900 transition z-40 flex items-center gap-2 text-xs font-bold">
+        <span>⚙️ Panel Profe</span>
+    </button>
+
+    <!-- VENTANA MODAL FLOTANTE DEL PANEL DE INSTRUCTOR -->
+    <div id="modalInstructor" class="fixed inset-0 bg-black/60 hidden items-center justify-center z-50 p-4 overflow-y-auto">
+        <div class="bg-white w-full max-w-3xl rounded-2xl shadow-2xl overflow-hidden p-6 relative max-h-[90vh] overflow-y-auto">
+            
+            <!-- Botón Cerrar Modal -->
+            <button onclick="cerrarModalInstructor()" class="absolute top-4 right-4 text-slate-400 hover:text-slate-700 font-bold text-lg">✕</button>
+
+            <!-- Login Instructor dentro del Modal -->
+            <div id="loginInstructor" class="space-y-3 py-6">
+                <h2 class="text-lg font-bold text-slate-800">🔒 Acceso al Panel del Instructor</h2>
+                <p class="text-xs text-slate-600">Ingresa tu contraseña para gestionar la configuración, fichas y registros.</p>
+                <div class="flex gap-2">
+                    <input type="password" id="claveInstructor" placeholder="Contraseña" onkeydown="manejarEnter(event)" class="border border-slate-300 rounded-lg p-2 text-sm flex-1">
+                    <button onclick="verificarClave()" class="bg-slate-800 text-white font-medium px-4 py-2 rounded-lg hover:bg-slate-900 transition text-sm">Acceder</button>
+                </div>
+                <p id="errorClave" class="text-red-500 text-xs mt-2 hidden">Contraseña incorrecta.</p>
+            </div>
+
+            <!-- Panel Protegido (Oculto hasta poner contraseña) -->
+            <div id="panelProtegido" class="hidden space-y-6 pt-2">
+                <div class="flex justify-between items-center border-b pb-3">
+                    <h2 class="text-base font-bold text-slate-800">⚙️ Panel de Control y Configuración</h2>
+                    <button onclick="cerrarPanel()" class="bg-red-100 text-red-600 px-3 py-1 rounded text-xs font-bold hover:bg-red-200">🔒 Bloquear Sesión</button>
+                </div>
+
+                <div class="bg-blue-50 border border-blue-200 p-4 rounded-lg space-y-4">
+                    
+                    <div class="bg-white p-3 rounded border border-blue-100 shadow-sm space-y-2">
+                        <label class="block font-bold text-blue-900 text-xs">📂 Seleccionar Curso Activo en la Nube:</label>
+                        <div class="flex gap-2">
+                            <select id="selectCursosExistentes" onchange="seleccionarCursoInstructor(this.value)" class="border border-slate-300 rounded p-2 text-xs flex-1 bg-slate-50 font-semibold text-slate-800">
+                                <option value="">-- Selecciona un curso existente --</option>
+                                <option value="nuevo">➕ Crear nuevo curso...</option>
+                            </select>
+                            <button onclick="cambiarCursoActivo()" class="bg-indigo-600 text-white px-3 py-1.5 rounded text-xs hover:bg-indigo-700 transition font-medium">⚡ Activar</button>
+                        </div>
+                    </div>
+
+                    <div class="flex justify-between items-center">
+                        <h3 class="text-sm font-bold text-blue-900">Personalización Institucional</h3>
+                        <button onclick="nuevoCurso()" class="bg-amber-600 text-white font-medium px-3 py-1 rounded hover:bg-amber-700 transition text-xs">🔄 Limpiar / Nuevo</button>
+                    </div>
+                    
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
+                        <div>
+                            <label class="block font-semibold text-slate-700 mb-1">ID del Curso / Ficha (Sin espacios):</label>
+                            <input type="text" id="inputCursoId" class="border border-slate-300 rounded p-2 w-full bg-white font-bold text-blue-800" placeholder="ej. ficha_3171088">
+                        </div>
+                        <div>
+                            <label class="block font-semibold text-slate-700 mb-1">Título de la Institución / Colegio:</label>
+                            <input type="text" id="inputTitulo" class="border border-slate-300 rounded p-2 w-full bg-white" placeholder="Ej. Colegio Juan Mejia Gomez">
+                        </div>
+                    </div>
+
+                    <div class="bg-white p-3 rounded border border-blue-100 shadow-sm space-y-3">
+                        <label class="block font-bold text-blue-900 text-xs">🖼️ Escudo / Logo Institucional:</label>
+                        <div class="space-y-1">
+                            <label class="block text-slate-600 text-xs">Seleccionar el escudo de un colegio ya registrado:</label>
+                            <select id="selectEscudosColegios" onchange="usarEscudoExistente(this.value)" class="border border-slate-300 rounded p-2 text-xs w-full bg-slate-50">
+                                <option value="">-- Seleccionar colegio existente --</option>
+                            </select>
+                        </div>
+                        <div class="space-y-1">
+                            <label class="block text-slate-600 text-xs">O subir un escudo nuevo desde tu dispositivo:</label>
+                            <input type="file" id="inputLogoFile" accept="image/*" class="text-xs text-slate-600">
+                        </div>
+                        <input type="hidden" id="inputLogoUrlOculto" value="">
+                    </div>
+
+                    <button onclick="guardarConfiguracion()" class="bg-blue-600 text-white font-medium px-3 py-1.5 rounded hover:bg-blue-700 transition text-xs">💾 Guardar Configuración y Logo en la Nube</button>
+
+                    <hr class="border-blue-200">
+
+                    <!-- APARTADO DE DESPEDIDA Y GRADO -->
+                    <div class="bg-amber-50 border border-amber-200 p-3 rounded-lg space-y-3">
+                        <h4 class="font-bold text-amber-900 text-xs">🎓 Configuración de Despedida y Grado</h4>
+                        
+                        <div>
+                            <label class="block font-semibold text-slate-700 mb-1 text-xs">Mensaje Emotivo / Agradecimientos del Profe:</label>
+                            <div id="editorQuill" class="bg-white h-36 rounded-b-lg"></div>
+                        </div>
+
+                        <div>
+                            <label class="block font-semibold text-slate-700 mb-1 text-xs">📸 Subir Banner Grupal del Recuerdo (Opcional):</label>
+                            <input type="file" id="inputFotoGrupal" accept="image/*" class="text-xs text-slate-600 mb-1">
+                        </div>
+
+                        <div class="space-y-2 pt-2 border-t border-amber-200">
+                            <div class="flex items-center gap-2">
+                                <input type="checkbox" id="inputModoDespedida" class="w-4 h-4 text-amber-600 rounded">
+                                <label for="inputModoDespedida" class="font-bold text-amber-900 text-xs">🚀 Activar Modo Despedida (Oculta formulario a estudiantes)</label>
+                            </div>
+                            <div class="flex items-center gap-2">
+                                <input type="checkbox" id="inputPermitirMuro" class="w-4 h-4 text-amber-600 rounded" checked>
+                                <label for="inputPermitirMuro" class="font-bold text-amber-900 text-xs">💬 Permitir que los estudiantes publiquen/editen mensajes en el Muro</label>
+                            </div>
+                        </div>
+
+                        <button onclick="guardarDespedida()" class="bg-amber-600 text-white font-medium px-3 py-1.5 rounded hover:bg-amber-700 transition text-xs">✨ Guardar y Publicar Despedida</button>
+                    </div>
+
+                    <hr class="border-blue-200">
+
+                    <div>
+                        <label class="block font-semibold text-slate-700 mb-1 text-xs">📂 Cargar Listado de Estudiantes (Excel de Nombres):</label>
+                        <input type="file" id="excelFile" accept=".xlsx, .xls, .csv" class="text-xs text-slate-600 mb-2">
+                        <button onclick="cargarListadoExcel()" class="bg-indigo-600 text-white font-medium px-3 py-1.5 rounded hover:bg-indigo-700 transition text-xs">📤 Subir Nombres a la Nube</button>
+                    </div>
+                </div>
+
+                <!-- Listado y Exportación -->
+                <div>
+                    <div class="flex justify-between items-center mb-3">
+                        <div class="flex items-center gap-2">
+                            <h3 class="text-sm font-bold text-slate-800">Estudiantes Registrados (Nube)</h3>
+                            <span id="contadorRegistros" class="bg-blue-600 text-white text-xs px-2.5 py-0.5 rounded-full font-bold">0</span>
+                        </div>
+                        <button onclick="descargarExcel()" class="bg-emerald-600 text-white font-medium px-3 py-1.5 rounded-lg hover:bg-emerald-700 transition text-xs">📥 Descargar Excel Consolidado</button>
+                    </div>
+                    <div class="overflow-x-auto border border-slate-200 rounded-lg max-h-64">
+                        <table id="tablaEstudiantes" class="w-full text-left border-collapse text-xs">
+                            <thead class="bg-slate-100 text-slate-700 sticky top-0">
+                                <tr>
+                                    <th class="p-2.5 border-b">Nombre</th>
+                                    <th class="p-2.5 border-b">Tipo</th>
+                                    <th class="p-2.5 border-b">N° Doc</th>
+                                    <th class="p-2.5 border-b">Tel</th>
+                                    <th class="p-2.5 border-b">Correo</th>
+                                    <th class="p-2.5 border-b text-center">Acción</th>
+                                </tr>
+                            </thead>
+                            <tbody id="cuerpoTabla" class="text-slate-600"></tbody>
+                        </table>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+    </div>
+
+    <!-- CONTENEDOR PRINCIPAL DE LA PÁGINA -->
     <div class="max-w-3xl mx-auto bg-white rounded-xl shadow-md overflow-hidden p-6 sm:p-8">
         
         <!-- Cabecera Dinámica Institucional -->
@@ -104,134 +251,6 @@
 
         <div id="mensaje" class="mt-4 hidden p-3 rounded-lg text-sm text-center"></div>
 
-        <hr class="my-8">
-
-        <!-- Panel del Instructor -->
-        <div id="loginInstructor" class="bg-slate-100 p-4 rounded-lg">
-            <h2 class="text-base font-bold text-slate-800 mb-1">🔒 Panel del Instructor & Configuración</h2>
-            <p class="text-xs text-slate-600 mb-2">Ingresa tu contraseña para gestionar listados, aislar por curso y ver registros.</p>
-            <div class="flex gap-2">
-                <input type="password" id="claveInstructor" placeholder="Contraseña" onkeydown="manejarEnter(event)" class="border border-slate-300 rounded-lg p-2 text-sm flex-1">
-                <button onclick="verificarClave()" class="bg-slate-800 text-white font-medium px-4 py-2 rounded-lg hover:bg-slate-900 transition text-sm">Acceder</button>
-            </div>
-            <p id="errorClave" class="text-red-500 text-xs mt-2 hidden">Contraseña incorrecta.</p>
-        </div>
-
-        <div id="panelProtegido" class="hidden mt-4 space-y-6">
-            <div class="bg-blue-50 border border-blue-200 p-4 rounded-lg space-y-4">
-                
-                <div class="bg-white p-3 rounded border border-blue-100 shadow-sm space-y-2">
-                    <label class="block font-bold text-blue-900 text-xs">📂 Seleccionar Curso Activo en la Nube:</label>
-                    <div class="flex gap-2">
-                        <select id="selectCursosExistentes" onchange="seleccionarCursoInstructor(this.value)" class="border border-slate-300 rounded p-2 text-xs flex-1 bg-slate-50 font-semibold text-slate-800">
-                            <option value="">-- Selecciona un curso existente --</option>
-                            <option value="nuevo">➕ Crear nuevo curso...</option>
-                        </select>
-                        <button onclick="cambiarCursoActivo()" class="bg-indigo-600 text-white px-3 py-1.5 rounded text-xs hover:bg-indigo-700 transition font-medium">⚡ Activar Curso</button>
-                    </div>
-                </div>
-
-                <div class="flex justify-between items-center">
-                    <h3 class="text-sm font-bold text-blue-900">⚙️ Configuración y Personalización</h3>
-                    <button onclick="nuevoCurso()" class="bg-amber-600 text-white font-medium px-3 py-1 rounded hover:bg-amber-700 transition text-xs">🔄 Limpiar / Nuevo</button>
-                </div>
-                
-                <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
-                    <div>
-                        <label class="block font-semibold text-slate-700 mb-1">ID del Curso / Ficha (Sin espacios):</label>
-                        <input type="text" id="inputCursoId" class="border border-slate-300 rounded p-2 w-full bg-white font-bold text-blue-800" placeholder="ej. ficha_3171088">
-                    </div>
-                    <div>
-                        <label class="block font-semibold text-slate-700 mb-1">Título de la Institución / Colegio:</label>
-                        <input type="text" id="inputTitulo" class="border border-slate-300 rounded p-2 w-full bg-white" placeholder="Ej. Colegio Juan Mejia Gomez">
-                    </div>
-                </div>
-
-                <div class="bg-white p-3 rounded border border-blue-100 shadow-sm space-y-3">
-                    <label class="block font-bold text-blue-900 text-xs">🖼️ Escudo / Logo Institucional:</label>
-                    <div class="space-y-1">
-                        <label class="block text-slate-600 text-xs">Seleccionar el escudo de un colegio ya registrado:</label>
-                        <select id="selectEscudosColegios" onchange="usarEscudoExistente(this.value)" class="border border-slate-300 rounded p-2 text-xs w-full bg-slate-50">
-                            <option value="">-- Seleccionar colegio existente --</option>
-                        </select>
-                    </div>
-                    <div class="space-y-1">
-                        <label class="block text-slate-600 text-xs">O subir un escudo nuevo desde tu dispositivo:</label>
-                        <input type="file" id="inputLogoFile" accept="image/*" class="text-xs text-slate-600">
-                    </div>
-                    <input type="hidden" id="inputLogoUrlOculto" value="">
-                </div>
-
-                <button onclick="guardarConfiguracion()" class="bg-blue-600 text-white font-medium px-3 py-1.5 rounded hover:bg-blue-700 transition text-xs">💾 Guardar Configuración y Logo en la Nube</button>
-
-                <hr class="border-blue-200">
-
-                <!-- APARTADO DE DESPEDIDA Y GRADO -->
-                <div class="bg-amber-50 border border-amber-200 p-3 rounded-lg space-y-3">
-                    <h4 class="font-bold text-amber-900 text-xs">🎓 Configuración de Despedida y Grado</h4>
-                    
-                    <div>
-                        <label class="block font-semibold text-slate-700 mb-1 text-xs">Mensaje Emotivo / Agradecimientos del Profe:</label>
-                        <div id="editorQuill" class="bg-white h-36 rounded-b-lg"></div>
-                    </div>
-
-                    <div>
-                        <label class="block font-semibold text-slate-700 mb-1 text-xs">📸 Subir Banner Grupal del Recuerdo (Opcional):</label>
-                        <input type="file" id="inputFotoGrupal" accept="image/*" class="text-xs text-slate-600 mb-1">
-                    </div>
-
-                    <div class="space-y-2 pt-2 border-t border-amber-200">
-                        <div class="flex items-center gap-2">
-                            <input type="checkbox" id="inputModoDespedida" class="w-4 h-4 text-amber-600 rounded">
-                            <label for="inputModoDespedida" class="font-bold text-amber-900 text-xs">🚀 Activar Modo Despedida (Oculta formulario a estudiantes)</label>
-                        </div>
-                        <div class="flex items-center gap-2">
-                            <input type="checkbox" id="inputPermitirMuro" class="w-4 h-4 text-amber-600 rounded" checked>
-                            <label for="inputPermitirMuro" class="font-bold text-amber-900 text-xs">💬 Permitir que los estudiantes publiquen/editen mensajes en el Muro</label>
-                        </div>
-                    </div>
-
-                    <button onclick="guardarDespedida()" class="bg-amber-600 text-white font-medium px-3 py-1.5 rounded hover:bg-amber-700 transition text-xs">✨ Guardar y Publicar Despedida</button>
-                </div>
-
-                <hr class="border-blue-200">
-
-                <div>
-                    <label class="block font-semibold text-slate-700 mb-1 text-xs">📂 Cargar Listado de Estudiantes (Excel de Nombres):</label>
-                    <input type="file" id="excelFile" accept=".xlsx, .xls, .csv" class="text-xs text-slate-600 mb-2">
-                    <button onclick="cargarListadoExcel()" class="bg-indigo-600 text-white font-medium px-3 py-1.5 rounded hover:bg-indigo-700 transition text-xs">📤 Subir Nombres a la Nube</button>
-                </div>
-            </div>
-
-            <!-- Listado y Exportación -->
-            <div>
-                <div class="flex justify-between items-center mb-3">
-                    <div class="flex items-center gap-2">
-                        <h3 class="text-sm font-bold text-slate-800">Estudiantes Registrados (Nube)</h3>
-                        <span id="contadorRegistros" class="bg-blue-600 text-white text-xs px-2.5 py-0.5 rounded-full font-bold">0</span>
-                    </div>
-                    <div class="flex gap-2">
-                        <button onclick="descargarExcel()" class="bg-emerald-600 text-white font-medium px-3 py-1.5 rounded-lg hover:bg-emerald-700 transition text-xs">📥 Descargar Excel Consolidado</button>
-                        <button onclick="cerrarPanel()" class="bg-red-600 text-white font-medium px-3 py-1.5 rounded-lg hover:bg-red-700 transition text-xs">Bloquear</button>
-                    </div>
-                </div>
-                <div class="overflow-x-auto border border-slate-200 rounded-lg max-h-96">
-                    <table id="tablaEstudiantes" class="w-full text-left border-collapse text-xs">
-                        <thead class="bg-slate-100 text-slate-700 sticky top-0">
-                            <tr>
-                                <th class="p-2.5 border-b">Nombre</th>
-                                <th class="p-2.5 border-b">Tipo</th>
-                                <th class="p-2.5 border-b">N° Doc</th>
-                                <th class="p-2.5 border-b">Tel</th>
-                                <th class="p-2.5 border-b">Correo</th>
-                                <th class="p-2.5 border-b text-center">Acción</th>
-                            </tr>
-                        </thead>
-                        <tbody id="cuerpoTabla" class="text-slate-600"></tbody>
-                    </table>
-                </div>
-            </div>
-        </div>
     </div>
 
     <script>
@@ -242,15 +261,13 @@
         const CONTRASENA_SECRETA = "profe123"; 
         let quill;
 
-        // ESTRICTO: Solo toma el curso si viene en la URL con ?curso=... (No usa memoria local)
         function obtenerCursoActual() {
             const urlParams = new URLSearchParams(window.location.search);
             const cursoUrl = urlParams.get('curso');
-            
             if (cursoUrl) {
                 return cursoUrl.trim().toLowerCase();
             }
-            return null; // Retorna nulo si el link está limpio
+            return null;
         }
 
         window.addEventListener('DOMContentLoaded', async () => {
@@ -273,9 +290,8 @@
                 await cargarNombresComboBoxNube(cursoActual);
                 await cargarMuroMensajes(cursoActual);
             } else {
-                // Estado neutro estricto para el enlace principal limpio
                 document.getElementById('tituloInstitucion').textContent = "Portal General de Registro";
-                document.getElementById('subtituloCurso').textContent = "Por favor, ingresa mediante el enlace personalizado asignado por tu instructor.";
+                document.getElementById('subtituloCurso').textContent = "Por favor, ingresa mediante el enlace personalizado asignado a tu institución.";
                 document.getElementById('contenedorPortal').style.display = 'none';
             }
 
@@ -290,6 +306,17 @@
                 }
             }
         });
+
+        // Funciones para abrir y cerrar el modal flotante
+        function abrirModalInstructor() {
+            document.getElementById('modalInstructor').classList.remove('hidden');
+            document.getElementById('modalInstructor').classList.add('flex');
+        }
+
+        function cerrarModalInstructor() {
+            document.getElementById('modalInstructor').classList.remove('flex');
+            document.getElementById('modalInstructor').classList.add('hidden');
+        }
 
         async function cargarConfiguracionNube(cursoId) {
             const { data } = await _supabase
@@ -335,7 +362,7 @@
                 }
             } else {
                 document.getElementById('tituloInstitucion').textContent = `Curso: ${cursoId}`;
-                document.getElementById('subtituloCurso').textContent = "Configura el título y el escudo desde el panel de abajo.";
+                document.getElementById('subtituloCurso').textContent = "Configura el título y el escudo desde el panel del profesor.";
                 document.getElementById('inputCursoId').value = cursoId;
             }
         }
@@ -506,7 +533,7 @@
             if (error) {
                 alert("Error al guardar la despedida: " + error.message);
             } else {
-                alert("¡Configuración de despedida y muro guardada con éxito!");
+                alert("¡Configuración de despedida guardada con éxito!");
                 window.location.href = `?curso=${cursoId}`;
             }
         }
@@ -597,9 +624,6 @@
                 document.getElementById('inputPermitirMuro').checked = true;
                 document.getElementById('inputLogoFile').value = "";
                 document.getElementById('inputLogoUrlOculto').value = "";
-                document.getElementById('tituloInstitucion').textContent = "Portal de Registro";
-                document.getElementById('subtituloCurso').textContent = "Curso / Ficha activa: nuevo";
-                document.getElementById('logoInstitucion').classList.add('hidden');
             }
         }
 
