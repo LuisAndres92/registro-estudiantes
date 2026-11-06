@@ -6,7 +6,7 @@
     <title>Portal de Registro Institucional</title>
     <!-- Favicon dinámico predeterminado -->
     <link id="faviconPestaña" rel="icon" type="image/png" href="">
-    <!-- Librerías de Excel, Tailwind, Canvas Confetti (fuegos artificiales) y Supabase -->
+    <!-- Librerías de Excel, Tailwind, Canvas Confetti y Supabase -->
     <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
@@ -17,7 +17,7 @@
 </head>
 <body class="bg-slate-50 min-h-screen py-10 px-4 relative">
 
-    <!-- BOTÓN FLOTANTE DISCRETO PARA EL PROFESOR (Esquina inferior derecha) -->
+    <!-- BOTÓN FLOTANTE DISCRETO PARA EL PROFESOR -->
     <button onclick="abrirModalInstructor()" class="fixed bottom-5 right-5 bg-slate-800 text-white p-3 rounded-full shadow-2xl hover:bg-slate-900 transition z-40 flex items-center gap-2 text-xs font-bold">
         <span>⚙️ Panel Profe</span>
     </button>
@@ -28,7 +28,7 @@
             
             <button onclick="cerrarModalInstructor()" class="absolute top-4 right-4 text-slate-400 hover:text-slate-700 font-bold text-lg">✕</button>
 
-            <!-- Login Instructor dentro del Modal -->
+            <!-- Login Instructor -->
             <div id="loginInstructor" class="space-y-3 py-6">
                 <h2 class="text-lg font-bold text-slate-800">🔒 Acceso al Panel del Instructor</h2>
                 <p class="text-xs text-slate-600">Ingresa tu contraseña para gestionar la configuración, fichas y registros.</p>
@@ -295,7 +295,6 @@
                 await cargarNombresComboBoxNube(cursoActual);
                 await cargarMuroMensajes(cursoActual);
                 
-                // TIEMPO REAL PARA ESTUDIANTES, MENSAJES Y LIKES
                 _supabase
                     .channel('cambios-en-vivo')
                     .on('postgres_changes', { event: '*', schema: 'public', table: 'Estudiantes', filter: `curso_id=eq.${cursoActual}` }, payload => {
@@ -304,7 +303,7 @@
                     .on('postgres_changes', { event: '*', schema: 'public', table: 'MensajesDespedida', filter: `curso_id=eq.${cursoActual}` }, payload => {
                         cargarMuroMensajes(cursoActual);
                     })
-                    .on('postgres_changes', { event: '*', schema: 'public', table: 'ReaccionesMensajes' }, payload => {
+                    .on('postgres_changes', { event: '*', schema: 'public', table: 'reaccionesmensajes' }, payload => {
                         cargarMuroMensajes(cursoActual);
                     })
                     .subscribe();
@@ -346,7 +345,7 @@
 
             if (data) {
                 document.getElementById('tituloInstitucion').textContent = data.titulo || "Portal de Registro";
-                document.getElementById('subtituloCurso').textContent = `Curso / Ficha activa: ${cursoId}`;
+                document.getElementById('subtituloCurso').textContent = `SENA - Ficha: ${cursoId}`;
                 document.getElementById('inputCursoId').value = cursoId;
 
                 const imgEl = document.getElementById('logoInstitucion');
@@ -412,7 +411,7 @@
                 .order('fecha', { ascending: false });
 
             const { data: reacciones } = await _supabase
-                .from('ReaccionesMensajes')
+                .from('reaccionesmensajes')
                 .select('*');
 
             const contenedor = document.getElementById('muroMensajesList');
@@ -460,29 +459,33 @@
         }
 
         async function darLikeMensaje(mensajeId) {
-            let nombreEst = document.getElementById('selectNombreMensaje').value;
-            
-            if (!nombreEst) {
-                if (sessionStorage.getItem('instructor_activo') === 'true') {
-                    nombreEst = "⭐ PROFESOR";
+            let nombreEst = "";
+
+            // SI TIENES LA SESIÓN DE PROFESOR ABIERTA, TE RECONOCE AUTOMÁTICAMENTE COMO PROFE LUIS CATAÑO
+            if (sessionStorage.getItem('instructor_activo') === 'true') {
+                nombreEst = "⭐ PROFE LUIS CATAÑO";
+            } else {
+                let selectEl = document.getElementById('selectNombreMensaje');
+                if (selectEl && selectEl.value) {
+                    nombreEst = selectEl.value;
                 } else {
-                    nombreEst = prompt("Para dar Me Gusta, escribe tu nombre tal como aparece en la lista del curso:");
+                    nombreEst = prompt("Para dar Me Gusta, escribe tu nombre:");
                     if (!nombreEst) return;
                     nombreEst = nombreEst.trim().toUpperCase();
                 }
             }
 
             const { data: existente } = await _supabase
-                .from('ReaccionesMensajes')
+                .from('reaccionesmensajes')
                 .select('*')
                 .eq('mensaje_id', mensajeId)
                 .eq('nombre_estudiante', nombreEst)
                 .maybeSingle();
 
             if (existente) {
-                await _supabase.from('ReaccionesMensajes').delete().eq('id', existente.id);
+                await _supabase.from('reaccionesmensajes').delete().eq('id', existente.id);
             } else {
-                await _supabase.from('ReaccionesMensajes').insert({
+                await _supabase.from('reaccionesmensajes').insert({
                     mensaje_id: mensajeId,
                     nombre_estudiante: nombreEst
                 });
