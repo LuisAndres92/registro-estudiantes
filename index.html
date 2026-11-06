@@ -70,13 +70,14 @@
             </form>
         </div>
 
-        <!-- CONTENEDOR DE DESPEDIDA Y GRADO -->
+        <!-- CONTENEDOR DE DESPEDIDA Y GRADO (Oculto si no hay foto o modo desactivado) -->
         <div id="seccionDespedida" class="hidden text-center space-y-6 py-4">
             <div class="bg-gradient-to-r from-amber-500 to-indigo-600 p-6 rounded-2xl shadow-xl text-white space-y-4">
                 <h2 class="text-3xl font-extrabold tracking-wide">🎓 ¡Felicitaciones Graduados! 🎆</h2>
                 <div id="textoDespedidaVista" class="text-slate-100 text-base leading-relaxed bg-black/20 p-5 rounded-xl text-left"></div>
             </div>
 
+            <!-- Contenedor condicional para la foto (Se oculta por completo si no hay foto) -->
             <div id="contenedorFotoGrupal" class="hidden">
                 <h3 class="text-sm font-bold text-slate-700 mb-2">📸 Nuestro Gran Recuerdo Juntos</h3>
                 <img id="fotoGrupalVista" src="" alt="Foto Grupal" class="w-full max-h-96 object-cover rounded-xl shadow-lg border-4 border-white">
@@ -130,9 +131,23 @@
                     </div>
                 </div>
 
-                <div>
-                    <label class="block font-semibold text-slate-700 mb-1 text-xs">🖼️ Subir Escudo / Logo del Colegio (Imagen):</label>
-                    <input type="file" id="inputLogoFile" accept="image/*" class="text-xs text-slate-600 mb-2">
+                <!-- GESTIÓN DE ESCUDOS / LOGOS (Con opción de reusar existentes o subir nuevo) -->
+                <div class="bg-white p-3 rounded border border-blue-100 shadow-sm space-y-3">
+                    <label class="block font-bold text-blue-900 text-xs">🖼️ Escudo / Logo Institucional:</label>
+                    
+                    <div class="space-y-1">
+                        <label class="block text-slate-600 text-xs">Seleccionar un escudo guardado previamente:</label>
+                        <select id="selectEscudosExistentes" onchange="usarEscudoExistente(this.value)" class="border border-slate-300 rounded p-2 text-xs w-full bg-slate-50">
+                            <option value="">-- Seleccionar escudo de otro curso --</option>
+                        </select>
+                    </div>
+
+                    <div class="space-y-1">
+                        <label class="block text-slate-600 text-xs">O subir un escudo nuevo desde tu dispositivo:</label>
+                        <input type="file" id="inputLogoFile" accept="image/*" class="text-xs text-slate-600">
+                    </div>
+                    <!-- Campo oculto para almacenar la URL seleccionada -->
+                    <input type="hidden" id="inputLogoUrlOculto" value="">
                 </div>
 
                 <button onclick="guardarConfiguracion()" class="bg-blue-600 text-white font-medium px-3 py-1.5 rounded hover:bg-blue-700 transition text-xs">💾 Guardar Configuración y Logo en la Nube</button>
@@ -149,7 +164,7 @@
                     </div>
 
                     <div>
-                        <label class="block font-semibold text-slate-700 mb-1 text-xs">📸 Subir Foto Grupal del Recuerdo:</label>
+                        <label class="block font-semibold text-slate-700 mb-1 text-xs">📸 Subir Foto Grupal del Recuerdo (Opcional):</label>
                         <input type="file" id="inputFotoGrupal" accept="image/*" class="text-xs text-slate-600 mb-1">
                     </div>
 
@@ -213,12 +228,10 @@
             if (cursoUrl) {
                 return cursoUrl.trim().toLowerCase();
             }
-            // Si no viene en la URL, revisamos si hay uno guardado en localStorage
             return localStorage.getItem('curso_id_activo') || null;
         }
 
         window.addEventListener('DOMContentLoaded', async () => {
-            // Inicializar el editor Quill
             quill = new Quill('#editorQuill', {
                 theme: 'snow',
                 modules: {
@@ -247,6 +260,7 @@
                 document.getElementById('loginInstructor').classList.add('hidden');
                 document.getElementById('panelProtegido').classList.remove('hidden');
                 await poblarComboBoxCursosExistentes();
+                await poblarComboBoxEscudosExistentes();
                 if (cursoActual) {
                     await cargarDatosPanelInstructor(cursoActual);
                     await actualizarTabla();
@@ -280,9 +294,12 @@
                     document.getElementById('seccionDespedida').classList.remove('hidden');
                     document.getElementById('textoDespedidaVista').innerHTML = data.mensaje_despedida || "¡Gracias por todo y felicitaciones por su grado!";
                     
-                    if (data.foto_despedida_url) {
+                    // Condicional inteligente: Solo muestra la foto si realmente existe una URL guardada
+                    if (data.foto_despedida_url && data.foto_despedida_url.trim() !== "") {
                         document.getElementById('fotoGrupalVista').src = data.foto_despedida_url;
                         document.getElementById('contenedorFotoGrupal').classList.remove('hidden');
+                    } else {
+                        document.getElementById('contenedorFotoGrupal').classList.add('hidden');
                     }
                     
                     lanzarBengalas();
@@ -307,28 +324,42 @@
                     quill.root.innerHTML = data.mensaje_despedida || "";
                 }
                 document.getElementById('inputModoDespedida').checked = data.modo_despedida || false;
+                document.getElementById('inputLogoUrlOculto').value = data.logo_url || "";
+            }
+        }
+
+        // Llenar el ComboBox con todos los escudos/logos ya guardados en Supabase
+        async function poblarComboBoxEscudosExistentes() {
+            const selectEscudos = document.getElementById('selectEscudosExistentes');
+            selectEscudos.innerHTML = '<option value="">-- Seleccionar escudo de otro curso --</option>';
+
+            const { data } = await _supabase.from('Configuracion').select('curso_id, logo_url');
+            if (data) {
+                let escudosVistos = new Set();
+                data.forEach(item => {
+                    if (item.logo_url && !escudosVistos.has(item.logo_url)) {
+                        escudosVistos.add(item.logo_url);
+                        let opt = document.createElement('option');
+                        opt.value = item.logo_url;
+                        opt.textContent = `Escudo de: ${item.curso_id}`;
+                        selectEscudos.appendChild(opt);
+                    }
+                });
+            }
+        }
+
+        function usarEscudoExistente(url) {
+            if (url) {
+                document.getElementById('inputLogoUrlOculto').value = url;
+                document.getElementById('inputLogoFile').value = ""; // Limpiar input file si elige uno existente
             }
         }
 
         function lanzarBengalas() {
-            confetti({
-                particleCount: 120,
-                spread: 90,
-                origin: { y: 0.6 }
-            });
+            confetti({ particleCount: 120, spread: 90, origin: { y: 0.6 } });
             setTimeout(() => {
-                confetti({
-                    particleCount: 80,
-                    angle: 60,
-                    spread: 55,
-                    origin: { x: 0 }
-                });
-                confetti({
-                    particleCount: 80,
-                    angle: 120,
-                    spread: 55,
-                    origin: { x: 1 }
-                });
+                confetti({ particleCount: 80, angle: 60, spread: 55, origin: { x: 0 } });
+                confetti({ particleCount: 80, angle: 120, spread: 55, origin: { x: 1 } });
             }, 300);
         }
 
@@ -370,7 +401,7 @@
                 alert("Error al guardar la despedida: " + error.message);
             } else {
                 localStorage.setItem('curso_id_activo', cursoId);
-                alert("¡Mensaje de despedida y estado guardados con éxito en la nube!");
+                alert("¡Mensaje de despedida guardado con éxito!");
                 window.location.href = `?curso=${cursoId}`;
             }
         }
@@ -426,6 +457,7 @@
                 document.getElementById('inputTitulo').value = '';
                 if (quill) quill.root.innerHTML = '';
                 document.getElementById('inputModoDespedida').checked = false;
+                document.getElementById('inputLogoUrlOculto').value = "";
             } else if (val) {
                 document.getElementById('inputCursoId').value = val;
                 cargarDatosPanelInstructor(val);
@@ -451,6 +483,7 @@
                 if (quill) quill.root.innerHTML = '';
                 document.getElementById('inputModoDespedida').checked = false;
                 document.getElementById('inputLogoFile').value = "";
+                document.getElementById('inputLogoUrlOculto').value = "";
                 document.getElementById('tituloInstitucion').textContent = "Portal de Registro";
                 document.getElementById('subtituloCurso').textContent = "Curso / Grupo activo: nuevo";
                 document.getElementById('logoInstitucion').classList.add('hidden');
@@ -461,16 +494,12 @@
             const nuevoCursoId = document.getElementById('inputCursoId').value.trim().toLowerCase().replace(/\s+/g, '_');
             const nuevoTitulo = document.getElementById('inputTitulo').value.trim();
             const logoFile = document.getElementById('inputLogoFile').files[0];
+            let logoUrlFinal = document.getElementById('inputLogoUrlOculto').value;
 
             if (!nuevoCursoId) {
                 alert("El ID del curso no puede estar vacío.");
                 return;
             }
-
-            let logoUrlFinal = "";
-            const { data: cursoActualData } = await _supabase.from('Configuracion').select('logo_url, mensaje_despedida, foto_despedida_url, modo_despedida, nombres').eq('curso_id', nuevoCursoId).maybeSingle();
-            
-            if (cursoActualData) logoUrlFinal = cursoActualData.logo_url;
 
             if (logoFile) {
                 const fileName = `${nuevoCursoId}_${Date.now()}_${logoFile.name}`;
@@ -485,6 +514,8 @@
                     logoUrlFinal = publicURL.publicUrl;
                 }
             }
+
+            const { data: cursoActualData } = await _supabase.from('Configuracion').select('mensaje_despedida, foto_despedida_url, modo_despedida, nombres').eq('curso_id', nuevoCursoId).maybeSingle();
 
             const { error: errorUpsert } = await _supabase.from('Configuracion').upsert({
                 curso_id: nuevoCursoId,
@@ -727,6 +758,7 @@
                 document.getElementById('loginInstructor').classList.add('hidden');
                 document.getElementById('panelProtegido').classList.remove('hidden');
                 await poblarComboBoxCursosExistentes();
+                await poblarComboBoxEscudosExistentes();
                 const cursoActual = obtenerCursoActual();
                 if (cursoActual) await actualizarTabla();
             } else {
