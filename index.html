@@ -26,7 +26,6 @@
     <div id="modalInstructor" class="fixed inset-0 bg-black/60 hidden items-center justify-center z-50 p-4 overflow-y-auto">
         <div class="bg-white w-full max-w-3xl rounded-2xl shadow-2xl overflow-hidden p-6 relative max-h-[90vh] overflow-y-auto">
             
-            <!-- Botón Cerrar Modal -->
             <button onclick="cerrarModalInstructor()" class="absolute top-4 right-4 text-slate-400 hover:text-slate-700 font-bold text-lg">✕</button>
 
             <!-- Login Instructor dentro del Modal -->
@@ -229,21 +228,27 @@
                 <img id="fotoGrupalVista" src="" alt="Foto Grupal" class="w-full max-h-96 object-cover rounded-xl shadow-lg border-4 border-white">
             </div>
 
-            <!-- MURO DE MENSAJES DE LOS ESTUDIANTES -->
+            <!-- MURO DE MENSAJES Y FOTOS DE LOS ESTUDIANTES -->
             <div class="bg-slate-100 p-5 rounded-2xl shadow-inner text-left space-y-4">
-                <h3 class="text-base font-bold text-slate-800 text-center">💬 Mural de Recuerdos y Mensajes del Grupo</h3>
+                <h3 class="text-base font-bold text-slate-800 text-center">💬 Mural de Recuerdos y Anuario del Grupo</h3>
                 
                 <div id="seccionFormMensaje" class="bg-white p-4 rounded-xl border border-slate-200 shadow-sm space-y-3">
-                    <p class="text-xs font-semibold text-slate-600">Deja tu dedicatoria para el grupo (solo puedes tener un mensaje activo, el cual puedes editar cuando quieras):</p>
+                    <p class="text-xs font-semibold text-slate-600">Deja tu dedicatoria y una foto tuya para el anuario (puedes editar tu mensaje o actualizar tu foto cuando quieras):</p>
                     <select id="selectNombreMensaje" class="w-full border border-slate-300 rounded p-2 text-xs bg-slate-50 text-slate-800 font-medium">
-                        <option value="">-- Selecciona tu nombre para escribir/editar --</option>
+                        <option value="">-- Selecciona tu nombre --</option>
                     </select>
                     <textarea id="inputMensajeEstudiante" rows="3" class="w-full border border-slate-300 rounded p-2 text-xs text-slate-800 focus:ring-2 focus:ring-indigo-500" placeholder="Escribe aquí tu mensaje de despedida..."></textarea>
-                    <button onclick="guardarMensajeEstudiante()" class="bg-indigo-600 text-white font-medium px-4 py-2 rounded-lg text-xs hover:bg-indigo-700 transition">✍️ Publicar / Actualizar Mi Mensaje</button>
-                    <p id="avisoMuroCerrado" class="text-red-600 text-xs font-bold hidden">⚠️ El profesor ha desactivado temporalmente la publicación de nuevos mensajes.</p>
+                    
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-600 mb-1">📸 Sube tu foto personal (Opcional):</label>
+                        <input type="file" id="inputFotoEstudiante" accept="image/*" class="text-xs text-slate-600">
+                    </div>
+
+                    <button onclick="guardarMensajeEstudiante()" class="bg-indigo-600 text-white font-medium px-4 py-2 rounded-lg text-xs hover:bg-indigo-700 transition w-full">✍️ Publicar / Actualizar en el Muro</button>
+                    <p id="avisoMuroCerrado" class="text-red-600 text-xs font-bold hidden text-center">⚠️ El profesor ha desactivado temporalmente la publicación de nuevos mensajes.</p>
                 </div>
 
-                <div id="muroMensajesList" class="space-y-3 max-h-80 overflow-y-auto pr-1"></div>
+                <div id="muroMensajesList" class="space-y-3 max-h-96 overflow-y-auto pr-1"></div>
             </div>
 
             <button onclick="lanzarBengalas()" class="bg-indigo-600 text-white px-6 py-3 rounded-xl font-bold shadow-lg hover:bg-indigo-700 transition animate-bounce">✨ ¡Celebrar con Fuegos Artificiales! ✨</button>
@@ -290,7 +295,7 @@
                 await cargarNombresComboBoxNube(cursoActual);
                 await cargarMuroMensajes(cursoActual);
                 
-                // ESCUCHAR CAMBIOS EN TIEMPO REAL PARA ESTUDIANTES Y MENSAJES
+                // TIEMPO REAL PARA ESTUDIANTES Y MENSAJES
                 _supabase
                     .channel('cambios-en-vivo')
                     .on('postgres_changes', { event: '*', schema: 'public', table: 'Estudiantes', filter: `curso_id=eq.${cursoActual}` }, payload => {
@@ -407,19 +412,31 @@
             contenedor.innerHTML = "";
 
             if (!data || data.length === 0) {
-                contenedor.innerHTML = `<p class="text-xs text-slate-500 text-center py-2">Aún no hay mensajes en el muro. ¡Sé el primero en dejar tu dedicatoria!</p>`;
+                contenedor.innerHTML = `<p class="text-xs text-slate-500 text-center py-2">Aún no hay mensajes en el anuario. ¡Sé el primero en dejar tu dedicatoria y foto!</p>`;
                 return;
             }
 
             data.forEach(item => {
                 let div = document.createElement('div');
-                div.className = "bg-white p-3 rounded-lg border border-slate-200 shadow-sm text-xs space-y-1";
+                div.className = "bg-white p-3 rounded-lg border border-slate-200 shadow-sm text-xs flex gap-3 items-start";
+                
+                // Renderizar foto del estudiante si existe
+                let fotoHtml = '';
+                if (item.foto_estudiante_url && item.foto_estudiante_url.trim() !== '') {
+                    fotoHtml = `<img src="${item.foto_estudiante_url}" alt="Foto" class="w-12 h-12 rounded-full object-cover border-2 border-indigo-500 shrink-0 shadow">`;
+                } else {
+                    fotoHtml = `<div class="w-12 h-12 rounded-full bg-indigo-100 text-indigo-700 flex items-center justify-center font-bold shrink-0 text-sm">🎓</div>`;
+                }
+
                 div.innerHTML = `
-                    <div class="flex justify-between items-center font-bold text-indigo-700">
-                        <span>🎓 ${item.nombre_estudiante}</span>
-                        <span class="text-[10px] text-slate-400">${new Date(item.fecha).toLocaleDateString()}</span>
+                    ${fotoHtml}
+                    <div class="flex-1 space-y-1">
+                        <div class="flex justify-between items-center font-bold text-indigo-700">
+                            <span>${item.nombre_estudiante}</span>
+                            <span class="text-[10px] text-slate-400">${new Date(item.fecha).toLocaleDateString()}</span>
+                        </div>
+                        <p class="text-slate-700 whitespace-pre-line">${item.mensaje}</p>
                     </div>
-                    <p class="text-slate-700 whitespace-pre-line">${item.mensaje}</p>
                 `;
                 contenedor.appendChild(div);
             });
@@ -429,6 +446,7 @@
             const cursoId = obtenerCursoActual();
             const nombreEst = document.getElementById('selectNombreMensaje').value;
             const mensajeTexto = document.getElementById('inputMensajeEstudiante').value.trim();
+            const fotoFile = document.getElementById('inputFotoEstudiante').files[0];
 
             if (!nombreEst) {
                 alert("Por favor selecciona tu nombre en el menú desplegable.");
@@ -439,24 +457,36 @@
                 return;
             }
 
+            // Buscar si ya tiene un mensaje previo para conservar su foto anterior si no sube una nueva
             const { data: existente } = await _supabase
                 .from('MensajesDespedida')
-                .select('id')
+                .select('*')
                 .eq('curso_id', cursoId)
                 .eq('nombre_estudiante', nombreEst)
                 .maybeSingle();
+
+            let fotoUrlFinal = existente ? (existente.foto_estudiante_url || "") : "";
+
+            if (fotoFile) {
+                const fileName = `${cursoId}_estudiante_${Date.now()}_${fotoFile.name}`;
+                const { error: errUpload } = await _supabase.storage.from('logos').upload(fileName, fotoFile);
+                if (!errUpload) {
+                    const { data: pubUrl } = _supabase.storage.from('logos').getPublicUrl(fileName);
+                    fotoUrlFinal = pubUrl.publicUrl;
+                }
+            }
 
             let errorUpsert;
             if (existente) {
                 const { error } = await _supabase
                     .from('MensajesDespedida')
-                    .update({ mensaje: mensajeTexto, fecha: new Date() })
+                    .update({ mensaje: mensajeTexto, foto_estudiante_url: fotoUrlFinal, fecha: new Date() })
                     .eq('id', existente.id);
                 errorUpsert = error;
             } else {
                 const { error } = await _supabase
                     .from('MensajesDespedida')
-                    .insert({ curso_id: cursoId, nombre_estudiante: nombreEst, mensaje: mensajeTexto });
+                    .insert({ curso_id: cursoId, nombre_estudiante: nombreEst, mensaje: mensajeTexto, foto_estudiante_url: fotoUrlFinal });
                 errorUpsert = error;
             }
 
@@ -464,8 +494,9 @@
                 alert("Hubo un error al guardar tu mensaje.");
                 console.error(errorUpsert);
             } else {
-                alert("¡Tu mensaje ha sido guardado/actualizado con éxito en el muro!");
+                alert("¡Tu mensaje y foto han sido guardados con éxito en el anuario!");
                 document.getElementById('inputMensajeEstudiante').value = "";
+                document.getElementById('inputFotoEstudiante').value = "";
                 await cargarMuroMensajes(cursoId);
             }
         }
@@ -915,7 +946,7 @@
                 const cursoActual = obtenerCursoActual();
                 if (cursoActual) await actualizarTabla();
             } else {
-                document.getElementById('errorClave').classList.remove('hidden');
+                document.getElementById('errorClave').classList.add('hidden');
             }
         }
 
