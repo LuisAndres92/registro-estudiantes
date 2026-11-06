@@ -86,7 +86,6 @@
             <div class="bg-slate-100 p-5 rounded-2xl shadow-inner text-left space-y-4">
                 <h3 class="text-base font-bold text-slate-800 text-center">💬 Mural de Recuerdos y Mensajes del Grupo</h3>
                 
-                <!-- Formulario para que el estudiante publique/edite su único mensaje -->
                 <div id="seccionFormMensaje" class="bg-white p-4 rounded-xl border border-slate-200 shadow-sm space-y-3">
                     <p class="text-xs font-semibold text-slate-600">Deja tu dedicatoria para el grupo (solo puedes tener un mensaje activo, el cual puedes editar cuando quieras):</p>
                     <select id="selectNombreMensaje" class="w-full border border-slate-300 rounded p-2 text-xs bg-slate-50 text-slate-800 font-medium">
@@ -97,10 +96,7 @@
                     <p id="avisoMuroCerrado" class="text-red-600 text-xs font-bold hidden">⚠️ El profesor ha desactivado temporalmente la publicación de nuevos mensajes.</p>
                 </div>
 
-                <!-- Lista donde todos leen los mensajes -->
-                <div id="muroMensajesList" class="space-y-3 max-h-80 overflow-y-auto pr-1">
-                    <!-- Se cargan dinámicamente -->
-                </div>
+                <div id="muroMensajesList" class="space-y-3 max-h-80 overflow-y-auto pr-1"></div>
             </div>
 
             <button onclick="lanzarBengalas()" class="bg-indigo-600 text-white px-6 py-3 rounded-xl font-bold shadow-lg hover:bg-indigo-700 transition animate-bounce">✨ ¡Celebrar con Fuegos Artificiales! ✨</button>
@@ -246,6 +242,7 @@
         const CONTRASENA_SECRETA = "profe123"; 
         let quill;
 
+        // ESTRICTO: Solo toma el curso si viene en la URL con ?curso=... (No usa memoria local)
         function obtenerCursoActual() {
             const urlParams = new URLSearchParams(window.location.search);
             const cursoUrl = urlParams.get('curso');
@@ -253,7 +250,7 @@
             if (cursoUrl) {
                 return cursoUrl.trim().toLowerCase();
             }
-            return localStorage.getItem('curso_id_activo') || null;
+            return null; // Retorna nulo si el link está limpio
         }
 
         window.addEventListener('DOMContentLoaded', async () => {
@@ -272,13 +269,13 @@
             let cursoActual = obtenerCursoActual();
             
             if (cursoActual) {
-                localStorage.setItem('curso_id_activo', cursoActual);
                 await cargarConfiguracionNube(cursoActual);
                 await cargarNombresComboBoxNube(cursoActual);
                 await cargarMuroMensajes(cursoActual);
             } else {
+                // Estado neutro estricto para el enlace principal limpio
                 document.getElementById('tituloInstitucion').textContent = "Portal General de Registro";
-                document.getElementById('subtituloCurso').textContent = "Por favor, ingresa mediante el enlace personalizado asignado a tu institución.";
+                document.getElementById('subtituloCurso').textContent = "Por favor, ingresa mediante el enlace personalizado asignado a tu institución o curso.";
                 document.getElementById('contenedorPortal').style.display = 'none';
             }
 
@@ -327,7 +324,6 @@
                         document.getElementById('contenedorFotoGrupal').classList.add('hidden');
                     }
 
-                    // Control de cierre del muro por parte del profesor
                     if (data.permitir_muro === false) {
                         document.getElementById('seccionFormMensaje').classList.add('hidden');
                     } else {
@@ -362,7 +358,6 @@
             }
         }
 
-        // Cargar y renderizar el muro de mensajes públicos
         async function cargarMuroMensajes(cursoId) {
             const { data } = await _supabase
                 .from('MensajesDespedida')
@@ -392,7 +387,6 @@
             });
         }
 
-        // Estudiante guarda o edita su único mensaje
         async function guardarMensajeEstudiante() {
             const cursoId = obtenerCursoActual();
             const nombreEst = document.getElementById('selectNombreMensaje').value;
@@ -407,7 +401,6 @@
                 return;
             }
 
-            // Verificar si ya existe un mensaje de este estudiante en este curso para actualizarlo en vez de duplicarlo
             const { data: existente } = await _supabase
                 .from('MensajesDespedida')
                 .select('id')
@@ -417,14 +410,12 @@
 
             let errorUpsert;
             if (existente) {
-                // Actualizar el existente
                 const { error } = await _supabase
                     .from('MensajesDespedida')
                     .update({ mensaje: mensajeTexto, fecha: new Date() })
                     .eq('id', existente.id);
                 errorUpsert = error;
             } else {
-                // Insertar nuevo
                 const { error } = await _supabase
                     .from('MensajesDespedida')
                     .insert({ curso_id: cursoId, nombre_estudiante: nombreEst, mensaje: mensajeTexto });
@@ -515,7 +506,6 @@
             if (error) {
                 alert("Error al guardar la despedida: " + error.message);
             } else {
-                localStorage.setItem('curso_id_activo', cursoId);
                 alert("¡Configuración de despedida y muro guardada con éxito!");
                 window.location.href = `?curso=${cursoId}`;
             }
@@ -594,13 +584,11 @@
                 alert("Selecciona un curso válido de la lista.");
                 return;
             }
-            localStorage.setItem('curso_id_activo', selectVal);
             window.location.href = `?curso=${selectVal}`;
         }
 
         function nuevoCurso() {
             if (confirm("¿Deseas limpiar los campos para configurar un nuevo curso?")) {
-                localStorage.removeItem('curso_id_activo');
                 document.getElementById('selectCursosExistentes').value = 'nuevo';
                 document.getElementById('inputCursoId').value = "";
                 document.getElementById('inputTitulo').value = "";
@@ -656,7 +644,6 @@
             if (errorUpsert) {
                 alert("Error al guardar: " + errorUpsert.message);
             } else {
-                localStorage.setItem('curso_id_activo', nuevoCursoId);
                 alert("¡Configuración guardada con éxito!");
                 window.location.href = `?curso=${nuevoCursoId}`;
             }
@@ -712,7 +699,6 @@
                 if (error) {
                     alert("Error al guardar nombres: " + error.message);
                 } else {
-                    localStorage.setItem('curso_id_activo', inputCursoField);
                     alert(`¡Se sincronizaron ${listaNombres.length} nombres!`);
                     window.location.href = `?curso=${inputCursoField}`;
                 }
