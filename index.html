@@ -6,11 +6,14 @@
     <title>Portal de Registro Institucional</title>
     <!-- Favicon dinámico predeterminado -->
     <link id="faviconPestaña" rel="icon" type="image/png" href="">
-    <!-- Librerías de Excel, Tailwind, Canvas Confetti (para bengalas/fuegos artificiales) y Supabase -->
+    <!-- Librerías de Excel, Tailwind, Canvas Confetti (fuegos artificiales) y Supabase -->
     <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <!-- Editor de texto enriquecido Quill.js -->
+    <link href="https://cdn.jsdelivr.net/npm/quill@1.3.7/dist/quill.snow.css" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/quill@1.3.7/dist/quill.min.js"></script>
 </head>
 <body class="bg-slate-50 min-h-screen py-10 px-4">
     <div class="max-w-3xl mx-auto bg-white rounded-xl shadow-md overflow-hidden p-6 sm:p-8">
@@ -22,7 +25,7 @@
             <p id="subtituloCurso" class="text-slate-600 text-sm mt-1">Selecciona tu nombre y completa los campos progresivamente.</p>
         </div>
 
-        <!-- CONTENEDOR PRINCIPAL: Si el modo despedida está activo, esto se oculta y se muestra la carta emotiva -->
+        <!-- CONTENEDOR PRINCIPAL: Formulario de Registro -->
         <div id="contenedorPortal">
             <form id="registroForm" class="space-y-4">
                 <!-- Paso 1: Seleccionar Nombre -->
@@ -67,11 +70,11 @@
             </form>
         </div>
 
-        <!-- CONTENEDOR DE DESPEDIDA Y GRADO (Aparece cuando el profe activa el modo despedida) -->
+        <!-- CONTENEDOR DE DESPEDIDA Y GRADO -->
         <div id="seccionDespedida" class="hidden text-center space-y-6 py-4">
-            <div class="bg-gradient-to-r from-amber-500 to-indigo-600 text-text p-6 rounded-2xl shadow-xl text-white space-y-4">
+            <div class="bg-gradient-to-r from-amber-500 to-indigo-600 p-6 rounded-2xl shadow-xl text-white space-y-4">
                 <h2 class="text-3xl font-extrabold tracking-wide">🎓 ¡Felicitaciones Graduados! 🎆</h2>
-                <div id="textoDespedidaVista" class="text-slate-100 text-base leading-relaxed whitespace-pre-line bg-black/20 p-4 rounded-xl"></div>
+                <div id="textoDespedidaVista" class="text-slate-100 text-base leading-relaxed bg-black/20 p-5 rounded-xl text-left"></div>
             </div>
 
             <div id="contenedorFotoGrupal" class="hidden">
@@ -136,13 +139,14 @@
 
                 <hr class="border-blue-200">
 
-                <!-- APARTADO DE MENSAJE DE DESPEDIDA Y FOTO GRUPAL -->
+                <!-- APARTADO DE DESPEDIDA Y GRADO (Con Editor de Texto Enriquecido) -->
                 <div class="bg-amber-50 border border-amber-200 p-3 rounded-lg space-y-3">
                     <h4 class="font-bold text-amber-900 text-xs">🎓 Configuración de Despedida y Grado</h4>
                     
                     <div>
                         <label class="block font-semibold text-slate-700 mb-1 text-xs">Mensaje Emotivo / Agradecimientos:</label>
-                        <textarea id="inputMensajeDespedida" rows="4" class="border border-slate-300 rounded p-2 w-full bg-white text-xs" placeholder="Escribe aquí unas palabras emotivas para el grupo..."></textarea>
+                        <!-- Contenedor del Editor Quill con barra de herramientas -->
+                        <div id="editorQuill" class="bg-white h-36 rounded-b-lg"></div>
                     </div>
 
                     <div>
@@ -201,6 +205,7 @@
         const _supabase = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
         const CONTRASENA_SECRETA = "profe123"; 
+        let quill;
 
         function obtenerCursoActual() {
             const urlParams = new URLSearchParams(window.location.search);
@@ -213,6 +218,19 @@
         }
 
         window.addEventListener('DOMContentLoaded', async () => {
+            // Inicializar el editor de texto enriquecido Quill
+            quill = new Quill('#editorQuill', {
+                theme: 'snow',
+                modules: {
+                    toolbar: [
+                        ['bold', 'italic', 'underline', 'strike'],
+                        [{ 'list': 'ordered'}, { 'list': 'bullet' }],
+                        [{ 'align': [] }],
+                        ['clean']
+                    ]
+                }
+            });
+
             const cursoActual = obtenerCursoActual();
             
             if (cursoActual) {
@@ -256,18 +274,16 @@
                     imgEl.classList.add('hidden');
                 }
 
-                // SI EL MODO DESPEDIDA ESTÁ ACTIVADO EN LA NUBE
                 if (data.modo_despedida) {
                     document.getElementById('contenedorPortal').classList.add('hidden');
                     document.getElementById('seccionDespedida').classList.remove('hidden');
-                    document.getElementById('textoDespedidaVista').textContent = data.mensaje_despedida || "¡Gracias por todo y felicitaciones por su grado!";
+                    document.getElementById('textoDespedidaVista').innerHTML = data.mensaje_despedida || "¡Gracias por todo y felicitaciones por su grado!";
                     
                     if (data.foto_despedida_url) {
                         document.getElementById('fotoGrupalVista').src = data.foto_despedida_url;
                         document.getElementById('contenedorFotoGrupal').classList.remove('hidden');
                     }
                     
-                    // Lanzar fuegos artificiales automáticamente al abrir
                     lanzarBengalas();
                 }
             }
@@ -282,19 +298,19 @@
 
             if (data) {
                 document.getElementById('inputTitulo').value = data.titulo || "";
-                document.getElementById('inputMensajeDespedida').value = data.mensaje_despedida || "";
+                if (quill) {
+                    quill.root.innerHTML = data.mensaje_despedida || "";
+                }
                 document.getElementById('inputModoDespedida').checked = data.modo_despedida || false;
             }
         }
 
-        // Función para simular bengalas y fuegos artificiales en pantalla
         function lanzarBengalas() {
             confetti({
                 particleCount: 120,
                 spread: 90,
                 origin: { y: 0.6 }
             });
-            // Doble efecto festivo
             setTimeout(() => {
                 confetti({
                     particleCount: 80,
@@ -313,7 +329,7 @@
 
         async function guardarDespedida() {
             const cursoId = document.getElementById('inputCursoId').value.trim().toLowerCase().replace(/\s+/g, '_');
-            const mensaje = document.getElementById('inputMensajeDespedida').value.trim();
+            const mensajeHtml = quill ? quill.root.innerHTML : "";
             const modoDespedida = document.getElementById('inputModoDespedida').checked;
             const fotoFile = document.getElementById('inputFotoGrupal').files[0];
 
@@ -340,7 +356,7 @@
                 titulo: previo ? previo.titulo : "",
                 logo_url: previo ? previo.logo_url : "",
                 nombres: previo ? previo.nombres : [],
-                mensaje_despedida: mensaje,
+                mensaje_despedida: mensajeHtml,
                 foto_despedida_url: fotoUrlFinal,
                 modo_despedida: modoDespedida
             }, { onConflict: 'curso_id' });
@@ -402,7 +418,7 @@
             if (val === 'nuevo') {
                 document.getElementById('inputCursoId').value = '';
                 document.getElementById('inputTitulo').value = '';
-                document.getElementById('inputMensajeDespedida').value = '';
+                if (quill) quill.root.innerHTML = '';
                 document.getElementById('inputModoDespedida').checked = false;
             } else if (val) {
                 document.getElementById('inputCursoId').value = val;
@@ -424,7 +440,7 @@
                 document.getElementById('selectCursosExistentes').value = 'nuevo';
                 document.getElementById('inputCursoId').value = "";
                 document.getElementById('inputTitulo').value = "";
-                document.getElementById('inputMensajeDespedida').value = "";
+                if (quill) quill.root.innerHTML = '';
                 document.getElementById('inputModoDespedida').checked = false;
                 document.getElementById('inputLogoFile').value = "";
                 document.getElementById('tituloInstitucion').textContent = "Portal de Registro";
