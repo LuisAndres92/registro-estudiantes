@@ -233,7 +233,7 @@
                 <h3 class="text-base font-bold text-slate-800 text-center">💬 Mural de Recuerdos y Anuario del Grupo</h3>
                 
                 <div id="seccionFormMensaje" class="bg-white p-4 rounded-xl border border-slate-200 shadow-sm space-y-3">
-                    <p class="text-xs font-semibold text-slate-600">Deja tu dedicatoria y una foto tuya para el anuario (puedes editar tu mensaje o actualizar tu foto cuando quieras):</p>
+                    <p class="text-xs font-semibold text-slate-600">Deja tu dedicatoria y una foto tuya para el anuario:</p>
                     <select id="selectNombreMensaje" class="w-full border border-slate-300 rounded p-2 text-xs bg-slate-50 text-slate-800 font-medium">
                         <option value="">-- Selecciona tu nombre --</option>
                     </select>
@@ -244,11 +244,11 @@
                         <input type="file" id="inputFotoEstudiante" accept="image/*" class="text-xs text-slate-600">
                     </div>
 
-                    <button onclick="guardarMensajeEstudiante()" class="bg-indigo-600 text-white font-medium px-4 py-2 rounded-lg text-xs hover:bg-indigo-700 transition w-full">✍️ Publicar / Actualizar en el Muro</button>
+                    <button onclick="guardarMensajeEstudiante()" class="bg-indigo-600 text-white font-medium px-4 py-2 rounded-lg text-xs hover:bg-indigo-700 transition w-full">✍️ Publicar / Actualizar en el Anuario</button>
                     <p id="avisoMuroCerrado" class="text-red-600 text-xs font-bold hidden text-center">⚠️ El profesor ha desactivado temporalmente la publicación de nuevos mensajes.</p>
                 </div>
 
-                <div id="muroMensajesList" class="space-y-3 max-h-96 overflow-y-auto pr-1"></div>
+                <div id="muroMensajesList" class="space-y-4 max-h-[500px] overflow-y-auto pr-1"></div>
             </div>
 
             <button onclick="lanzarBengalas()" class="bg-indigo-600 text-white px-6 py-3 rounded-xl font-bold shadow-lg hover:bg-indigo-700 transition animate-bounce">✨ ¡Celebrar con Fuegos Artificiales! ✨</button>
@@ -295,13 +295,16 @@
                 await cargarNombresComboBoxNube(cursoActual);
                 await cargarMuroMensajes(cursoActual);
                 
-                // TIEMPO REAL PARA ESTUDIANTES Y MENSAJES
+                // TIEMPO REAL PARA ESTUDIANTES, MENSAJES Y REACCIONES
                 _supabase
                     .channel('cambios-en-vivo')
                     .on('postgres_changes', { event: '*', schema: 'public', table: 'Estudiantes', filter: `curso_id=eq.${cursoActual}` }, payload => {
                         actualizarTabla();
                     })
                     .on('postgres_changes', { event: '*', schema: 'public', table: 'MensajesDespedida', filter: `curso_id=eq.${cursoActual}` }, payload => {
+                        cargarMuroMensajes(cursoActual);
+                    })
+                    .on('postgres_changes', { event: '*', schema: 'public', table: 'ReaccionesMensajes' }, payload => {
                         cargarMuroMensajes(cursoActual);
                     })
                     .subscribe();
@@ -343,7 +346,7 @@
 
             if (data) {
                 document.getElementById('tituloInstitucion').textContent = data.titulo || "Portal de Registro";
-                document.getElementById('subtituloCurso').textContent = `SENA - Ficha: ${cursoId}`;
+                document.getElementById('subtituloCurso').textContent = `Curso / Ficha activa: ${cursoId}`;
                 document.getElementById('inputCursoId').value = cursoId;
 
                 const imgEl = document.getElementById('logoInstitucion');
@@ -402,44 +405,106 @@
         }
 
         async function cargarMuroMensajes(cursoId) {
-            const { data } = await _supabase
+            const { data: mensajes } = await _supabase
                 .from('MensajesDespedida')
                 .select('*')
                 .eq('curso_id', cursoId)
                 .order('fecha', { ascending: false });
 
+            const { data: reacciones } = await _supabase
+                .from('ReaccionesMensajes')
+                .select('*');
+
             const contenedor = document.getElementById('muroMensajesList');
             contenedor.innerHTML = "";
 
-            if (!data || data.length === 0) {
+            if (!mensajes || mensajes.length === 0) {
                 contenedor.innerHTML = `<p class="text-xs text-slate-500 text-center py-2">Aún no hay mensajes en el anuario. ¡Sé el primero en dejar tu dedicatoria y foto!</p>`;
                 return;
             }
 
-            data.forEach(item => {
+            mensajes.forEach(item => {
                 let div = document.createElement('div');
-                div.className = "bg-white p-3 rounded-lg border border-slate-200 shadow-sm text-xs flex gap-3 items-start";
+                div.className = "bg-white p-3 rounded-xl border border-slate-200 shadow-sm text-xs flex gap-3 items-start relative";
                 
-                // Renderizar foto del estudiante si existe
-                let fotoHtml = '';
-                if (item.foto_estudiante_url && item.foto_estudiante_url.trim() !== '') {
-                    fotoHtml = `<img src="${item.foto_estudiante_url}" alt="Foto" class="w-12 h-12 rounded-full object-cover border-2 border-indigo-500 shrink-0 shadow">`;
-                } else {
-                    fotoHtml = `<div class="w-12 h-12 rounded-full bg-indigo-100 text-indigo-700 flex items-center justify-center font-bold shrink-0 text-sm">🎓</div>`;
-                }
+                let fotoHtml = item.foto_estudiante_url ? 
+                    `<img src="${item.foto_estudiante_url}" alt="Foto" class="w-12 h-12 rounded-full object-cover border-2 border-indigo-500 shrink-0 shadow">` :
+                    `<div class="w-12 h-12 rounded-full bg-indigo-100 text-indigo-700 flex items-center justify-center font-bold shrink-0 text-sm">🎓</div>`;
+
+                // Calcular contadores de reacciones para este mensaje
+                let rxMensaje = reacciones ? reacciones.filter(r => r.mensaje_id === item.id) : [];
+                let countCorazon = rxMensaje.filter(r => r.tipo_reaccion === '❤️').length;
+                let countAplauso = rxMensaje.filter(r => r.tipo_reaccion === '👏').length;
+                let countFuego = rxMensaje.filter(r => r.tipo_reaccion === '🔥').length;
+                let countEstrella = rxMensaje.filter(r => r.tipo_reaccion === '⭐').length;
 
                 div.innerHTML = `
                     ${fotoHtml}
-                    <div class="flex-1 space-y-1">
+                    <div class="flex-1 space-y-1.5">
                         <div class="flex justify-between items-center font-bold text-indigo-700">
                             <span>${item.nombre_estudiante}</span>
                             <span class="text-[10px] text-slate-400">${new Date(item.fecha).toLocaleDateString()}</span>
                         </div>
                         <p class="text-slate-700 whitespace-pre-line">${item.mensaje}</p>
+
+                        <!-- BARRA DE REACCIONES TIPO INSTAGRAM -->
+                        <div class="flex items-center gap-2 pt-2 border-t border-slate-100">
+                            <button onclick="reaccionarMensaje('${item.id}', '❤️')" class="flex items-center gap-1 bg-slate-50 hover:bg-rose-50 border border-slate-200 px-2 py-1 rounded-full text-[11px] transition">
+                                <span>❤️</span> <span class="font-bold text-slate-700">${countCorazon}</span>
+                            </button>
+                            <button onclick="reaccionarMensaje('${item.id}', '👏')" class="flex items-center gap-1 bg-slate-50 hover:bg-amber-50 border border-slate-200 px-2 py-1 rounded-full text-[11px] transition">
+                                <span>👏</span> <span class="font-bold text-slate-700">${countAplauso}</span>
+                            </button>
+                            <button onclick="reaccionarMensaje('${item.id}', '🔥')" class="flex items-center gap-1 bg-slate-50 hover:bg-orange-50 border border-slate-200 px-2 py-1 rounded-full text-[11px] transition">
+                                <span>🔥</span> <span class="font-bold text-slate-700">${countFuego}</span>
+                            </button>
+                            <button onclick="reaccionarMensaje('${item.id}', '⭐')" class="flex items-center gap-1 bg-slate-50 hover:bg-yellow-50 border border-slate-200 px-2 py-1 rounded-full text-[11px] transition">
+                                <span>⭐</span> <span class="font-bold text-slate-700">${countEstrella}</span>
+                            </button>
+                        </div>
                     </div>
                 `;
                 contenedor.appendChild(div);
             });
+        }
+
+        // Función para registrar o cambiar la reacción del estudiante
+        async function reaccionarMensaje(mensajeId, tipoEmoji) {
+            let nombreEst = document.getElementById('selectNombreMensaje').value;
+            if (!nombreEst) {
+                // Si no seleccionó su nombre arriba, le pedimos que elija uno mediante un prompt rápido
+                nombreEst = prompt("Para reaccionar, escribe tu nombre tal como aparece en la lista del curso:");
+                if (!nombreEst) return;
+                nombreEst = nombreEst.trim().toUpperCase();
+            }
+
+            // Verificar si ya reaccionó antes con este emoji para alternarlo (quitarlo), o cambiarlo
+            const { data: existente } = await _supabase
+                .from('ReaccionesMensajes')
+                .select('*')
+                .eq('mensaje_id', mensajeId)
+                .eq('nombre_estudiante', nombreEst)
+                .maybeSingle();
+
+            if (existente) {
+                if (existente.tipo_reaccion === tipoEmoji) {
+                    // Si hace clic en la misma reacción, se borra (toggle off)
+                    await _supabase.from('ReaccionesMensajes').delete().eq('id', existente.id);
+                } else {
+                    // Si hace clic en otra, se actualiza
+                    await _supabase.from('ReaccionesMensajes').update({ tipo_reaccion: tipoEmoji }).eq('id', existente.id);
+                }
+            } else {
+                // Insertar nueva reacción
+                await _supabase.from('ReaccionesMensajes').insert({
+                    mensaje_id: mensajeId,
+                    nombre_estudiante: nombreEst,
+                    tipo_reaccion: tipoEmoji
+                });
+            }
+
+            const cursoActual = obtenerCursoActual();
+            await cargarMuroMensajes(cursoActual);
         }
 
         async function guardarMensajeEstudiante() {
@@ -457,7 +522,6 @@
                 return;
             }
 
-            // Buscar si ya tiene un mensaje previo para conservar su foto anterior si no sube una nueva
             const { data: existente } = await _supabase
                 .from('MensajesDespedida')
                 .select('*')
@@ -591,7 +655,7 @@
             const selectNombreMensaje = document.getElementById('selectNombreMensaje');
             
             selectNombre.innerHTML = '<option value="">-- Selecciona tu nombre --</option>';
-            selectNombreMensaje.innerHTML = '<option value="">-- Selecciona tu nombre para escribir/editar --</option>';
+            selectNombreMensaje.innerHTML = '<option value="">-- Selecciona tu nombre para reaccionar o escribir --</option>';
 
             if (data && data.nombres) {
                 let nombres = data.nombres;
@@ -905,7 +969,7 @@
                 let tr = document.createElement('tr');
                 tr.className = "border-b hover:bg-slate-50";
                 tr.innerHTML = `
-                    <td class="p-2.5 font-medium text-slate-800">${item.nombre || ''}</td>
+                    <td class="p-2.5 font-medium text-slate-800">${item.nombre || '', { passive: true }}</td>
                     <td class="p-2.5">${item.tipo_doc || ''}</td>
                     <td class="p-2.5">${item.num_doc || ''}</td>
                     <td class="p-2.5">${item.telefono || ''}</td>
@@ -946,7 +1010,7 @@
                 const cursoActual = obtenerCursoActual();
                 if (cursoActual) await actualizarTabla();
             } else {
-                document.getElementById('errorClave').classList.add('hidden');
+                document.getElementById('errorClave').classList.remove('hidden');
             }
         }
 
