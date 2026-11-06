@@ -158,6 +158,13 @@
         const CONTRASENA_SECRETA = "profe123"; 
 
         function obtenerCursoActual() {
+            const urlParams = new URLSearchParams(window.location.search);
+            const cursoUrl = urlParams.get('curso');
+            
+            if (cursoUrl) {
+                localStorage.setItem('curso_id_activo', cursoUrl.trim().toLowerCase());
+                return cursoUrl.trim().toLowerCase();
+            }
             return localStorage.getItem('curso_id_activo') || 'juanmejia2026';
         }
 
@@ -201,6 +208,7 @@
             }
         }
 
+        // Función robusta mejorada para leer los nombres desde Supabase (sea objeto JSON o Array)
         async function cargarNombresComboBoxNube() {
             const cursoId = obtenerCursoActual();
             const { data } = await _supabase
@@ -213,8 +221,11 @@
             selectNombre.innerHTML = '<option value="">-- Selecciona tu nombre --</option>';
 
             if (data && data.nombres) {
-                // Si viene como string o jsonb, aseguramos parsearlo bien
-                let nombres = typeof data.nombres === 'string' ? JSON.parse(data.nombres) : data.nombres;
+                let nombres = data.nombres;
+                if (typeof nombres === 'string') {
+                    try { nombres = JSON.parse(nombres); } catch(e) { nombres = []; }
+                }
+                
                 if (Array.isArray(nombres)) {
                     nombres.forEach(nombre => {
                         let opt = document.createElement('option');
@@ -261,19 +272,17 @@
             }
 
             localStorage.setItem('curso_id_activo', selectVal);
-            alert(`¡Cambiado al curso "${selectVal}" con éxito!`);
-            location.reload();
+            window.location.href = `?curso=${selectVal}`;
         }
 
         function nuevoCurso() {
             if (confirm("¿Deseas limpiar los campos para configurar un nuevo curso o colegio?")) {
-                localStorage.removeItem('curso_id_activo');
                 document.getElementById('selectCursosExistentes').value = 'nuevo';
                 document.getElementById('inputCursoId').value = "";
                 document.getElementById('inputTitulo').value = "";
                 document.getElementById('inputLogoFile').value = "";
                 document.getElementById('tituloInstitucion').textContent = "Portal de Registro";
-                document.getElementById('subtituloCurso').textContent = "Curso / Grupo activo: general";
+                document.getElementById('subtituloCurso').textContent = "Curso / Grupo activo: nuevo";
                 document.getElementById('logoInstitucion').classList.add('hidden');
                 alert("Campos limpios. Escribe el nuevo ID de curso y título, guarda y carga el nuevo Excel de nombres.");
             }
@@ -307,7 +316,6 @@
                 }
             }
 
-            // Mantenemos los nombres que ya existían si ya estaban cargados
             const { data: cursoPrevio } = await _supabase.from('Configuracion').select('nombres').eq('curso_id', nuevoCursoId).maybeSingle();
             let nombresActuales = cursoPrevio ? cursoPrevio.nombres : [];
 
@@ -324,7 +332,7 @@
             } else {
                 localStorage.setItem('curso_id_activo', nuevoCursoId);
                 alert("¡Configuración guardada en la nube con éxito!");
-                location.reload();
+                window.location.href = `?curso=${nuevoCursoId}`;
             }
         }
 
@@ -364,7 +372,6 @@
 
                 listaNombres.sort();
 
-                // Traer datos previos para no borrar el título o el logo si ya estaban
                 const { data: cursoPrevio } = await _supabase.from('Configuracion').select('*').eq('curso_id', inputCursoField).maybeSingle();
                 
                 let tituloActual = cursoPrevio ? cursoPrevio.titulo : "";
@@ -382,7 +389,7 @@
                     console.error(error);
                 } else {
                     alert(`¡Se cargaron y sincronizaron ${listaNombres.length} nombres en la nube para el curso "${inputCursoField}"!`);
-                    location.reload();
+                    window.location.href = `?curso=${inputCursoField}`;
                 }
             };
             reader.readAsArrayBuffer(file);
