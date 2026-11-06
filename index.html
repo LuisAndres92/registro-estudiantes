@@ -82,6 +82,27 @@
                 <img id="fotoGrupalVista" src="" alt="Foto Grupal" class="w-full max-h-96 object-cover rounded-xl shadow-lg border-4 border-white">
             </div>
 
+            <!-- MURO DE MENSAJES DE LOS ESTUDIANTES -->
+            <div class="bg-slate-100 p-5 rounded-2xl shadow-inner text-left space-y-4">
+                <h3 class="text-base font-bold text-slate-800 text-center">💬 Mural de Recuerdos y Mensajes del Grupo</h3>
+                
+                <!-- Formulario para que el estudiante publique/edite su único mensaje -->
+                <div id="seccionFormMensaje" class="bg-white p-4 rounded-xl border border-slate-200 shadow-sm space-y-3">
+                    <p class="text-xs font-semibold text-slate-600">Deja tu dedicatoria para el grupo (solo puedes tener un mensaje activo, el cual puedes editar cuando quieras):</p>
+                    <select id="selectNombreMensaje" class="w-full border border-slate-300 rounded p-2 text-xs bg-slate-50 text-slate-800 font-medium">
+                        <option value="">-- Selecciona tu nombre para escribir/editar --</option>
+                    </select>
+                    <textarea id="inputMensajeEstudiante" rows="3" class="w-full border border-slate-300 rounded p-2 text-xs text-slate-800 focus:ring-2 focus:ring-indigo-500" placeholder="Escribe aquí tu mensaje de despedida..."></textarea>
+                    <button onclick="guardarMensajeEstudiante()" class="bg-indigo-600 text-white font-medium px-4 py-2 rounded-lg text-xs hover:bg-indigo-700 transition">✍️ Publicar / Actualizar Mi Mensaje</button>
+                    <p id="avisoMuroCerrado" class="text-red-600 text-xs font-bold hidden">⚠️ El profesor ha desactivado temporalmente la publicación de nuevos mensajes.</p>
+                </div>
+
+                <!-- Lista donde todos leen los mensajes -->
+                <div id="muroMensajesList" class="space-y-3 max-h-80 overflow-y-auto pr-1">
+                    <!-- Se cargan dinámicamente -->
+                </div>
+            </div>
+
             <button onclick="lanzarBengalas()" class="bg-indigo-600 text-white px-6 py-3 rounded-xl font-bold shadow-lg hover:bg-indigo-700 transition animate-bounce">✨ ¡Celebrar con Fuegos Artificiales! ✨</button>
         </div>
 
@@ -130,17 +151,14 @@
                     </div>
                 </div>
 
-                <!-- GESTIÓN DE ESCUDOS POR COLEGIO/INSTITUCIÓN -->
                 <div class="bg-white p-3 rounded border border-blue-100 shadow-sm space-y-3">
                     <label class="block font-bold text-blue-900 text-xs">🖼️ Escudo / Logo Institucional:</label>
-                    
                     <div class="space-y-1">
                         <label class="block text-slate-600 text-xs">Seleccionar el escudo de un colegio ya registrado:</label>
                         <select id="selectEscudosColegios" onchange="usarEscudoExistente(this.value)" class="border border-slate-300 rounded p-2 text-xs w-full bg-slate-50">
                             <option value="">-- Seleccionar colegio existente --</option>
                         </select>
                     </div>
-
                     <div class="space-y-1">
                         <label class="block text-slate-600 text-xs">O subir un escudo nuevo desde tu dispositivo:</label>
                         <input type="file" id="inputLogoFile" accept="image/*" class="text-xs text-slate-600">
@@ -157,18 +175,24 @@
                     <h4 class="font-bold text-amber-900 text-xs">🎓 Configuración de Despedida y Grado</h4>
                     
                     <div>
-                        <label class="block font-semibold text-slate-700 mb-1 text-xs">Mensaje Emotivo / Agradecimientos:</label>
+                        <label class="block font-semibold text-slate-700 mb-1 text-xs">Mensaje Emotivo / Agradecimientos del Profe:</label>
                         <div id="editorQuill" class="bg-white h-36 rounded-b-lg"></div>
                     </div>
 
                     <div>
-                        <label class="block font-semibold text-slate-700 mb-1 text-xs">📸 Subir Foto Grupal del Recuerdo (Opcional):</label>
+                        <label class="block font-semibold text-slate-700 mb-1 text-xs">📸 Subir Banner Grupal del Recuerdo (Opcional):</label>
                         <input type="file" id="inputFotoGrupal" accept="image/*" class="text-xs text-slate-600 mb-1">
                     </div>
 
-                    <div class="flex items-center gap-2 pt-2">
-                        <input type="checkbox" id="inputModoDespedida" class="w-4 h-4 text-amber-600 rounded">
-                        <label for="inputModoDespedida" class="font-bold text-amber-900 text-xs">🚀 Activar Modo Despedida (Oculta el formulario a los estudiantes)</label>
+                    <div class="space-y-2 pt-2 border-t border-amber-200">
+                        <div class="flex items-center gap-2">
+                            <input type="checkbox" id="inputModoDespedida" class="w-4 h-4 text-amber-600 rounded">
+                            <label for="inputModoDespedida" class="font-bold text-amber-900 text-xs">🚀 Activar Modo Despedida (Oculta formulario a estudiantes)</label>
+                        </div>
+                        <div class="flex items-center gap-2">
+                            <input type="checkbox" id="inputPermitirMuro" class="w-4 h-4 text-amber-600 rounded" checked>
+                            <label for="inputPermitirMuro" class="font-bold text-amber-900 text-xs">💬 Permitir que los estudiantes publiquen/editen mensajes en el Muro</label>
+                        </div>
                     </div>
 
                     <button onclick="guardarDespedida()" class="bg-amber-600 text-white font-medium px-3 py-1.5 rounded hover:bg-amber-700 transition text-xs">✨ Guardar y Publicar Despedida</button>
@@ -183,12 +207,11 @@
                 </div>
             </div>
 
-            <!-- Listado y Exportación (Con Contador en Vivo) -->
+            <!-- Listado y Exportación -->
             <div>
                 <div class="flex justify-between items-center mb-3">
                     <div class="flex items-center gap-2">
                         <h3 class="text-sm font-bold text-slate-800">Estudiantes Registrados (Nube)</h3>
-                        <!-- Etiqueta de conteo total en tiempo real -->
                         <span id="contadorRegistros" class="bg-blue-600 text-white text-xs px-2.5 py-0.5 rounded-full font-bold">0</span>
                     </div>
                     <div class="flex gap-2">
@@ -252,6 +275,7 @@
                 localStorage.setItem('curso_id_activo', cursoActual);
                 await cargarConfiguracionNube(cursoActual);
                 await cargarNombresComboBoxNube(cursoActual);
+                await cargarMuroMensajes(cursoActual);
             } else {
                 document.getElementById('tituloInstitucion').textContent = "Portal General de Registro";
                 document.getElementById('subtituloCurso').textContent = "Por favor, ingresa mediante el enlace personalizado asignado a tu institución.";
@@ -279,7 +303,7 @@
 
             if (data) {
                 document.getElementById('tituloInstitucion').textContent = data.titulo || "Portal de Registro";
-                document.getElementById('subtituloCurso').textContent = `SENA - Ficha: ${cursoId}`;
+                document.getElementById('subtituloCurso').textContent = `Curso / Ficha activa: ${cursoId}`;
                 document.getElementById('inputCursoId').value = cursoId;
 
                 const imgEl = document.getElementById('logoInstitucion');
@@ -301,6 +325,14 @@
                         document.getElementById('contenedorFotoGrupal').classList.remove('hidden');
                     } else {
                         document.getElementById('contenedorFotoGrupal').classList.add('hidden');
+                    }
+
+                    // Control de cierre del muro por parte del profesor
+                    if (data.permitir_muro === false) {
+                        document.getElementById('seccionFormMensaje').classList.add('hidden');
+                    } else {
+                        document.getElementById('seccionFormMensaje').classList.remove('hidden');
+                        document.getElementById('avisoMuroCerrado').classList.add('hidden');
                     }
                     
                     lanzarBengalas();
@@ -325,7 +357,87 @@
                     quill.root.innerHTML = data.mensaje_despedida || "";
                 }
                 document.getElementById('inputModoDespedida').checked = data.modo_despedida || false;
+                document.getElementById('inputPermitirMuro').checked = data.permitir_muro !== false;
                 document.getElementById('inputLogoUrlOculto').value = data.logo_url || "";
+            }
+        }
+
+        // Cargar y renderizar el muro de mensajes públicos
+        async function cargarMuroMensajes(cursoId) {
+            const { data } = await _supabase
+                .from('MensajesDespedida')
+                .select('*')
+                .eq('curso_id', cursoId)
+                .order('fecha', { ascending: false });
+
+            const contenedor = document.getElementById('muroMensajesList');
+            contenedor.innerHTML = "";
+
+            if (!data || data.length === 0) {
+                contenedor.innerHTML = `<p class="text-xs text-slate-500 text-center py-2">Aún no hay mensajes en el muro. ¡Sé el primero en dejar tu dedicatoria!</p>`;
+                return;
+            }
+
+            data.forEach(item => {
+                let div = document.createElement('div');
+                div.className = "bg-white p-3 rounded-lg border border-slate-200 shadow-sm text-xs space-y-1";
+                div.innerHTML = `
+                    <div class="flex justify-between items-center font-bold text-indigo-700">
+                        <span>🎓 ${item.nombre_estudiante}</span>
+                        <span class="text-[10px] text-slate-400">${new Date(item.fecha).toLocaleDateString()}</span>
+                    </div>
+                    <p class="text-slate-700 whitespace-pre-line">${item.mensaje}</p>
+                `;
+                contenedor.appendChild(div);
+            });
+        }
+
+        // Estudiante guarda o edita su único mensaje
+        async function guardarMensajeEstudiante() {
+            const cursoId = obtenerCursoActual();
+            const nombreEst = document.getElementById('selectNombreMensaje').value;
+            const mensajeTexto = document.getElementById('inputMensajeEstudiante').value.trim();
+
+            if (!nombreEst) {
+                alert("Por favor selecciona tu nombre en el menú desplegable.");
+                return;
+            }
+            if (!mensajeTexto) {
+                alert("Escribe un mensaje antes de publicar.");
+                return;
+            }
+
+            // Verificar si ya existe un mensaje de este estudiante en este curso para actualizarlo en vez de duplicarlo
+            const { data: existente } = await _supabase
+                .from('MensajesDespedida')
+                .select('id')
+                .eq('curso_id', cursoId)
+                .eq('nombre_estudiante', nombreEst)
+                .maybeSingle();
+
+            let errorUpsert;
+            if (existente) {
+                // Actualizar el existente
+                const { error } = await _supabase
+                    .from('MensajesDespedida')
+                    .update({ mensaje: mensajeTexto, fecha: new Date() })
+                    .eq('id', existente.id);
+                errorUpsert = error;
+            } else {
+                // Insertar nuevo
+                const { error } = await _supabase
+                    .from('MensajesDespedida')
+                    .insert({ curso_id: cursoId, nombre_estudiante: nombreEst, mensaje: mensajeTexto });
+                errorUpsert = error;
+            }
+
+            if (errorUpsert) {
+                alert("Hubo un error al guardar tu mensaje.");
+                console.error(errorUpsert);
+            } else {
+                alert("¡Tu mensaje ha sido guardado/actualizado con éxito en el muro!");
+                document.getElementById('inputMensajeEstudiante').value = "";
+                await cargarMuroMensajes(cursoId);
             }
         }
 
@@ -368,6 +480,7 @@
             const cursoId = document.getElementById('inputCursoId').value.trim().toLowerCase().replace(/\s+/g, '_');
             const mensajeHtml = quill ? quill.root.innerHTML : "";
             const modoDespedida = document.getElementById('inputModoDespedida').checked;
+            const permitirMuro = document.getElementById('inputPermitirMuro').checked;
             const fotoFile = document.getElementById('inputFotoGrupal').files[0];
 
             if (!cursoId) {
@@ -395,14 +508,15 @@
                 nombres: previo ? previo.nombres : [],
                 mensaje_despedida: mensajeHtml,
                 foto_despedida_url: fotoUrlFinal,
-                modo_despedida: modoDespedida
+                modo_despedida: modoDespedida,
+                permitir_muro: permitirMuro
             }, { onConflict: 'curso_id' });
 
             if (error) {
                 alert("Error al guardar la despedida: " + error.message);
             } else {
                 localStorage.setItem('curso_id_activo', cursoId);
-                alert("¡Mensaje de despedida guardado con éxito!");
+                alert("¡Configuración de despedida y muro guardada con éxito!");
                 window.location.href = `?curso=${cursoId}`;
             }
         }
@@ -415,7 +529,10 @@
                 .maybeSingle();
 
             const selectNombre = document.getElementById('nombre');
+            const selectNombreMensaje = document.getElementById('selectNombreMensaje');
+            
             selectNombre.innerHTML = '<option value="">-- Selecciona tu nombre --</option>';
+            selectNombreMensaje.innerHTML = '<option value="">-- Selecciona tu nombre para escribir/editar --</option>';
 
             if (data && data.nombres) {
                 let nombres = data.nombres;
@@ -425,10 +542,15 @@
                 
                 if (Array.isArray(nombres)) {
                     nombres.forEach(nombre => {
-                        let opt = document.createElement('option');
-                        opt.value = nombre;
-                        opt.textContent = nombre;
-                        selectNombre.appendChild(opt);
+                        let opt1 = document.createElement('option');
+                        opt1.value = nombre;
+                        opt1.textContent = nombre;
+                        selectNombre.appendChild(opt1);
+
+                        let opt2 = document.createElement('option');
+                        opt2.value = nombre;
+                        opt2.textContent = nombre;
+                        selectNombreMensaje.appendChild(opt2);
                     });
                 }
             }
@@ -458,6 +580,7 @@
                 document.getElementById('inputTitulo').value = '';
                 if (quill) quill.root.innerHTML = '';
                 document.getElementById('inputModoDespedida').checked = false;
+                document.getElementById('inputPermitirMuro').checked = true;
                 document.getElementById('inputLogoUrlOculto').value = "";
             } else if (val) {
                 document.getElementById('inputCursoId').value = val;
@@ -483,6 +606,7 @@
                 document.getElementById('inputTitulo').value = "";
                 if (quill) quill.root.innerHTML = '';
                 document.getElementById('inputModoDespedida').checked = false;
+                document.getElementById('inputPermitirMuro').checked = true;
                 document.getElementById('inputLogoFile').value = "";
                 document.getElementById('inputLogoUrlOculto').value = "";
                 document.getElementById('tituloInstitucion').textContent = "Portal de Registro";
@@ -516,7 +640,7 @@
                 }
             }
 
-            const { data: cursoActualData } = await _supabase.from('Configuracion').select('mensaje_despedida, foto_despedida_url, modo_despedida, nombres').eq('curso_id', nuevoCursoId).maybeSingle();
+            const { data: cursoActualData } = await _supabase.from('Configuracion').select('mensaje_despedida, foto_despedida_url, modo_despedida, permitir_muro, nombres').eq('curso_id', nuevoCursoId).maybeSingle();
 
             const { error: errorUpsert } = await _supabase.from('Configuracion').upsert({
                 curso_id: nuevoCursoId,
@@ -525,7 +649,8 @@
                 nombres: cursoActualData ? cursoActualData.nombres : [],
                 mensaje_despedida: cursoActualData ? cursoActualData.mensaje_despedida : "",
                 foto_despedida_url: cursoActualData ? cursoActualData.foto_despedida_url : "",
-                modo_despedida: cursoActualData ? cursoActualData.modo_despedida : false
+                modo_despedida: cursoActualData ? cursoActualData.modo_despedida : false,
+                permitir_muro: cursoActualData ? cursoActualData.permitir_muro : true
             }, { onConflict: 'curso_id' });
 
             if (errorUpsert) {
@@ -580,7 +705,8 @@
                     nombres: listaNombres,
                     mensaje_despedida: cursoPrevio ? cursoPrevio.mensaje_despedida : "",
                     foto_despedida_url: cursoPrevio ? cursoPrevio.foto_despedida_url : "",
-                    modo_despedida: cursoPrevio ? cursoPrevio.modo_despedida : false
+                    modo_despedida: cursoPrevio ? cursoPrevio.modo_despedida : false,
+                    permitir_muro: cursoPrevio ? cursoPrevio.permitir_muro : true
                 }, { onConflict: 'curso_id' });
 
                 if (error) {
@@ -721,7 +847,6 @@
                 return;
             }
 
-            // Actualizar el contador numérico en tiempo real
             document.getElementById('contadorRegistros').textContent = data.length;
 
             data.forEach(item => {
