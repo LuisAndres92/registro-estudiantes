@@ -70,14 +70,13 @@
             </form>
         </div>
 
-        <!-- CONTENEDOR DE DESPEDIDA Y GRADO (Oculto si no hay foto o modo desactivado) -->
+        <!-- CONTENEDOR DE DESPEDIDA Y GRADO -->
         <div id="seccionDespedida" class="hidden text-center space-y-6 py-4">
             <div class="bg-gradient-to-r from-amber-500 to-indigo-600 p-6 rounded-2xl shadow-xl text-white space-y-4">
                 <h2 class="text-3xl font-extrabold tracking-wide">🎓 ¡Felicitaciones Graduados! 🎆</h2>
                 <div id="textoDespedidaVista" class="text-slate-100 text-base leading-relaxed bg-black/20 p-5 rounded-xl text-left"></div>
             </div>
 
-            <!-- Contenedor condicional para la foto (Se oculta por completo si no hay foto) -->
             <div id="contenedorFotoGrupal" class="hidden">
                 <h3 class="text-sm font-bold text-slate-700 mb-2">📸 Nuestro Gran Recuerdo Juntos</h3>
                 <img id="fotoGrupalVista" src="" alt="Foto Grupal" class="w-full max-h-96 object-cover rounded-xl shadow-lg border-4 border-white">
@@ -122,23 +121,23 @@
                 
                 <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
                     <div>
-                        <label class="block font-semibold text-slate-700 mb-1">ID del Curso / Colegio (Sin espacios):</label>
-                        <input type="text" id="inputCursoId" class="border border-slate-300 rounded p-2 w-full bg-white font-bold text-blue-800" placeholder="ej. juanmejia2026">
+                        <label class="block font-semibold text-slate-700 mb-1">ID del Curso / Ficha (Sin espacios):</label>
+                        <input type="text" id="inputCursoId" class="border border-slate-300 rounded p-2 w-full bg-white font-bold text-blue-800" placeholder="ej. ficha_3171088">
                     </div>
                     <div>
-                        <label class="block font-semibold text-slate-700 mb-1">Título de la Institución:</label>
-                        <input type="text" id="inputTitulo" class="border border-slate-300 rounded p-2 w-full bg-white" placeholder="Ej. Juan Mejia Gomez">
+                        <label class="block font-semibold text-slate-700 mb-1">Título de la Institución / Colegio:</label>
+                        <input type="text" id="inputTitulo" class="border border-slate-300 rounded p-2 w-full bg-white" placeholder="Ej. Colegio Juan Mejia Gomez">
                     </div>
                 </div>
 
-                <!-- GESTIÓN DE ESCUDOS / LOGOS (Con opción de reusar existentes o subir nuevo) -->
+                <!-- GESTIÓN DE ESCUDOS POR COLEGIO/INSTITUCIÓN -->
                 <div class="bg-white p-3 rounded border border-blue-100 shadow-sm space-y-3">
                     <label class="block font-bold text-blue-900 text-xs">🖼️ Escudo / Logo Institucional:</label>
                     
                     <div class="space-y-1">
-                        <label class="block text-slate-600 text-xs">Seleccionar un escudo guardado previamente:</label>
-                        <select id="selectEscudosExistentes" onchange="usarEscudoExistente(this.value)" class="border border-slate-300 rounded p-2 text-xs w-full bg-slate-50">
-                            <option value="">-- Seleccionar escudo de otro curso --</option>
+                        <label class="block text-slate-600 text-xs">Seleccionar el escudo de un colegio ya registrado:</label>
+                        <select id="selectEscudosColegios" onchange="usarEscudoExistente(this.value)" class="border border-slate-300 rounded p-2 text-xs w-full bg-slate-50">
+                            <option value="">-- Seleccionar colegio existente --</option>
                         </select>
                     </div>
 
@@ -146,7 +145,7 @@
                         <label class="block text-slate-600 text-xs">O subir un escudo nuevo desde tu dispositivo:</label>
                         <input type="file" id="inputLogoFile" accept="image/*" class="text-xs text-slate-600">
                     </div>
-                    <!-- Campo oculto para almacenar la URL seleccionada -->
+                    <!-- Campo oculto para almacenar la URL del logo seleccionada -->
                     <input type="hidden" id="inputLogoUrlOculto" value="">
                 </div>
 
@@ -260,7 +259,7 @@
                 document.getElementById('loginInstructor').classList.add('hidden');
                 document.getElementById('panelProtegido').classList.remove('hidden');
                 await poblarComboBoxCursosExistentes();
-                await poblarComboBoxEscudosExistentes();
+                await poblarComboBoxEscudosColegios();
                 if (cursoActual) {
                     await cargarDatosPanelInstructor(cursoActual);
                     await actualizarTabla();
@@ -277,7 +276,7 @@
 
             if (data) {
                 document.getElementById('tituloInstitucion').textContent = data.titulo || "Portal de Registro";
-                document.getElementById('subtituloCurso').textContent = `Curso / Grupo activo: ${cursoId}`;
+                document.getElementById('subtituloCurso').textContent = `Curso / Ficha activa: ${cursoId}`;
                 document.getElementById('inputCursoId').value = cursoId;
 
                 const imgEl = document.getElementById('logoInstitucion');
@@ -294,7 +293,6 @@
                     document.getElementById('seccionDespedida').classList.remove('hidden');
                     document.getElementById('textoDespedidaVista').innerHTML = data.mensaje_despedida || "¡Gracias por todo y felicitaciones por su grado!";
                     
-                    // Condicional inteligente: Solo muestra la foto si realmente existe una URL guardada
                     if (data.foto_despedida_url && data.foto_despedida_url.trim() !== "") {
                         document.getElementById('fotoGrupalVista').src = data.foto_despedida_url;
                         document.getElementById('contenedorFotoGrupal').classList.remove('hidden');
@@ -306,7 +304,7 @@
                 }
             } else {
                 document.getElementById('tituloInstitucion').textContent = `Curso: ${cursoId}`;
-                document.getElementById('subtituloCurso').textContent = "Configura el título y el logo desde el panel de abajo.";
+                document.getElementById('subtituloCurso').textContent = "Configura el título y el escudo desde el panel de abajo.";
                 document.getElementById('inputCursoId').value = cursoId;
             }
         }
@@ -328,20 +326,21 @@
             }
         }
 
-        // Llenar el ComboBox con todos los escudos/logos ya guardados en Supabase
-        async function poblarComboBoxEscudosExistentes() {
-            const selectEscudos = document.getElementById('selectEscudosExistentes');
-            selectEscudos.innerHTML = '<option value="">-- Seleccionar escudo de otro curso --</option>';
+        // Llenar el ComboBox agrupado por TÍTULO DE LA INSTITUCIÓN (Colegio) en lugar del ID del curso
+        async function poblarComboBoxEscudosColegios() {
+            const selectEscudos = document.getElementById('selectEscudosColegios');
+            selectEscudos.innerHTML = '<option value="">-- Seleccionar colegio existente --</option>';
 
-            const { data } = await _supabase.from('Configuracion').select('curso_id, logo_url');
+            const { data } = await _supabase.from('Configuracion').select('titulo, logo_url');
             if (data) {
-                let escudosVistos = new Set();
+                let colegiosVistos = new Set();
                 data.forEach(item => {
-                    if (item.logo_url && !escudosVistos.has(item.logo_url)) {
-                        escudosVistos.add(item.logo_url);
+                    let nombreColegio = item.titulo ? item.titulo.trim() : "";
+                    if (nombreColegio && item.logo_url && !colegiosVistos.has(nombreColegio)) {
+                        colegiosVistos.add(nombreColegio);
                         let opt = document.createElement('option');
                         opt.value = item.logo_url;
-                        opt.textContent = `Escudo de: ${item.curso_id}`;
+                        opt.textContent = `🏫 ${nombreColegio}`;
                         selectEscudos.appendChild(opt);
                     }
                 });
@@ -351,7 +350,7 @@
         function usarEscudoExistente(url) {
             if (url) {
                 document.getElementById('inputLogoUrlOculto').value = url;
-                document.getElementById('inputLogoFile').value = ""; // Limpiar input file si elige uno existente
+                document.getElementById('inputLogoFile').value = ""; // Limpiar input file
             }
         }
 
@@ -370,7 +369,7 @@
             const fotoFile = document.getElementById('inputFotoGrupal').files[0];
 
             if (!cursoId) {
-                alert("Define un ID de curso primero.");
+                alert("Define un ID de curso o ficha primero.");
                 return;
             }
 
@@ -485,7 +484,7 @@
                 document.getElementById('inputLogoFile').value = "";
                 document.getElementById('inputLogoUrlOculto').value = "";
                 document.getElementById('tituloInstitucion').textContent = "Portal de Registro";
-                document.getElementById('subtituloCurso').textContent = "Curso / Grupo activo: nuevo";
+                document.getElementById('subtituloCurso').textContent = "Curso / Ficha activa: nuevo";
                 document.getElementById('logoInstitucion').classList.add('hidden');
             }
         }
@@ -758,7 +757,7 @@
                 document.getElementById('loginInstructor').classList.add('hidden');
                 document.getElementById('panelProtegido').classList.remove('hidden');
                 await poblarComboBoxCursosExistentes();
-                await poblarComboBoxEscudosExistentes();
+                await poblarComboBoxEscudosColegios();
                 const cursoActual = obtenerCursoActual();
                 if (cursoActual) await actualizarTabla();
             } else {
