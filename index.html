@@ -431,7 +431,6 @@
                     `<img src="${item.foto_estudiante_url}" alt="Foto" class="w-12 h-12 rounded-full object-cover border-2 border-indigo-500 shrink-0 shadow">` :
                     `<div class="w-12 h-12 rounded-full bg-indigo-100 text-indigo-700 flex items-center justify-center font-bold shrink-0 text-sm">🎓</div>`;
 
-                // Filtrar los likes de este mensaje específico
                 let likesMensaje = reacciones ? reacciones.filter(r => r.mensaje_id === item.id) : [];
                 let totalLikes = likesMensaje.length;
                 let nombresLikes = likesMensaje.map(r => r.nombre_estudiante).join(', ');
@@ -445,7 +444,7 @@
                         </div>
                         <p class="text-slate-700 whitespace-pre-line">${item.mensaje}</p>
 
-                        <!-- BARRA DE LIKES (CORAZÓN TIPO INSTAGRAM) -->
+                        <!-- BARRA DE LIKES (CORAZÓN) -->
                         <div class="flex items-center gap-2 pt-2 border-t border-slate-100">
                             <button onclick="darLikeMensaje('${item.id}')" class="flex items-center gap-1.5 bg-rose-50 hover:bg-rose-100 border border-rose-200 px-3 py-1 rounded-full text-xs transition text-rose-700 font-bold">
                                 <span>❤️</span> <span>${totalLikes}</span>
@@ -460,11 +459,9 @@
             });
         }
 
-        // Función para dar o quitar like (Corazón)
         async function darLikeMensaje(mensajeId) {
             let nombreEst = document.getElementById('selectNombreMensaje').value;
             
-            // Si el profesor está en el panel activo o el estudiante no seleccionó su nombre arriba
             if (!nombreEst) {
                 if (sessionStorage.getItem('instructor_activo') === 'true') {
                     nombreEst = "⭐ PROFESOR";
@@ -475,7 +472,6 @@
                 }
             }
 
-            // Verificar si ya le dio like a este mensaje
             const { data: existente } = await _supabase
                 .from('ReaccionesMensajes')
                 .select('*')
@@ -484,10 +480,8 @@
                 .maybeSingle();
 
             if (existente) {
-                // Si ya dio like, se quita (Toggle Off)
                 await _supabase.from('ReaccionesMensajes').delete().eq('id', existente.id);
             } else {
-                // Dar like
                 await _supabase.from('ReaccionesMensajes').insert({
                     mensaje_id: mensajeId,
                     nombre_estudiante: nombreEst
@@ -1001,7 +995,7 @@
                 const cursoActual = obtenerCursoActual();
                 if (cursoActual) await actualizarTabla();
             } else {
-                document.getElementById('errorClave').classList.add('hidden');
+                document.getElementById('errorClave').classList.remove('hidden');
             }
         }
 
@@ -1024,7 +1018,7 @@
                 .order('nombre', { ascending: true });
 
             if (error || !data) {
-                alert("No se pudieron cargar los datos para exportarक्षत्र = false");
+                alert("No se pudieron cargar los datos para exportar.");
                 return;
             }
 
@@ -1036,4 +1030,11 @@
                 "Correo Electrónico": r.correo || ""
             }));
 
-            let
+            let worksheet = XLSX.utils.json_to_sheet(dataExport);
+            let workbook = XLSX.utils.book_new();
+            XLSX.utils.book_append_sheet(workbook, worksheet, "Estudiantes");
+            XLSX.writeFile(workbook, `Listado_${cursoActual}.xlsx`);
+        }
+    </script>
+</body>
+</html>
