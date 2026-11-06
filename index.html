@@ -159,41 +159,39 @@
 
         const CONTRASENA_SECRETA = "profe123"; 
 
-        // Detectar curso por parámetro URL (?curso=...) o dejar neutro si no existe
+        // ESTRICTO: Solo toma el curso si viene en la URL con ?curso=...
         function obtenerCursoActual() {
             const urlParams = new URLSearchParams(window.location.search);
             const cursoUrl = urlParams.get('curso');
             
             if (cursoUrl) {
-                const cursoLimpio = cursoUrl.trim().toLowerCase();
-                localStorage.setItem('curso_id_activo', cursoLimpio);
-                return cursoLimpio;
+                return cursoUrl.trim().toLowerCase();
             }
-            return localStorage.getItem('curso_id_activo') || '';
+            return null; // Si no hay parámetro en el link, retorna nulo (en blanco)
         }
 
         window.addEventListener('DOMContentLoaded', async () => {
             const cursoActual = obtenerCursoActual();
+            
             if (cursoActual) {
-                await cargarConfiguracionNube();
-                await cargarNombresComboBoxNube();
+                await cargarConfiguracionNube(cursoActual);
+                await cargarNombresComboBoxNube(cursoActual);
             } else {
+                // Estado neutro cuando entran al link limpio sin ?curso=
                 document.getElementById('tituloInstitucion').textContent = "Portal General de Registro";
-                document.getElementById('subtituloCurso').textContent = "Por favor ingresa a través del enlace asignado a tu institución o curso.";
+                document.getElementById('subtituloCurso').textContent = "Por favor, ingresa mediante el enlace personalizado que te compartió tu institución.";
+                document.getElementById('registroForm').style.display = 'none'; // Oculta el formulario para evitar registros erróneos
             }
 
             if (sessionStorage.getItem('instructor_activo') === 'true') {
                 document.getElementById('loginInstructor').classList.add('hidden');
                 document.getElementById('panelProtegido').classList.remove('hidden');
                 await poblarComboBoxCursosExistentes();
-                await actualizarTabla();
+                if (cursoActual) await actualizarTabla();
             }
         });
 
-        async function cargarConfiguracionNube() {
-            const cursoId = obtenerCursoActual();
-            if (!cursoId) return;
-
+        async function cargarConfiguracionNube(cursoId) {
             const { data } = await _supabase
                 .from('Configuracion')
                 .select('*')
@@ -215,16 +213,13 @@
                     imgEl.classList.add('hidden');
                 }
             } else {
-                document.getElementById('tituloInstitucion').textContent = "Portal de Registro";
-                document.getElementById('subtituloCurso').textContent = `Curso / Grupo activo: ${cursoId}`;
+                document.getElementById('tituloInstitucion').textContent = `Curso: ${cursoId}`;
+                document.getElementById('subtituloCurso').textContent = "Configura el título y el logo desde el panel de abajo.";
                 document.getElementById('inputCursoId').value = cursoId;
             }
         }
 
-        async function cargarNombresComboBoxNube() {
-            const cursoId = obtenerCursoActual();
-            if (!cursoId) return;
-
+        async function cargarNombresComboBoxNube(cursoId) {
             const { data } = await _supabase
                 .from('Configuracion')
                 .select('nombres')
@@ -266,7 +261,7 @@
                     }
                 });
             }
-            selectCursos.value = obtenerCursoActual();
+            selectCursos.value = obtenerCursoActual() || "";
         }
 
         function seleccionarCursoInstructor(val) {
@@ -284,8 +279,6 @@
                 alert("Selecciona un curso válido de la lista.");
                 return;
             }
-
-            localStorage.setItem('curso_id_activo', selectVal);
             window.location.href = `?curso=${selectVal}`;
         }
 
@@ -344,7 +337,6 @@
                 alert("Error al guardar en la tabla Configuracion: " + errorUpsert.message);
                 console.error(errorUpsert);
             } else {
-                localStorage.setItem('curso_id_activo', nuevoCursoId);
                 alert("¡Configuración guardada en la nube con éxito!");
                 window.location.href = `?curso=${nuevoCursoId}`;
             }
@@ -357,8 +349,6 @@
                 alert("Por favor define primero un 'ID del Curso' válido y guárdalo antes de subir el Excel.");
                 return;
             }
-
-            localStorage.setItem('curso_id_activo', inputCursoField);
 
             const fileInput = document.getElementById('excelFile');
             if (fileInput.files.length === 0) {
@@ -460,6 +450,7 @@
             }
         }
 
+        function mostrarPase5() {}
         function mostrarPaso5() {
             if (document.getElementById('telefono').value.trim().length > 0) {
                 document.getElementById('block-correo').classList.remove('hidden');
@@ -521,6 +512,8 @@
 
         async function actualizarTabla() {
             const cursoActual = obtenerCursoActual();
+            if (!cursoActual) return;
+
             const { data, error } = await _supabase
                 .from('Estudiantes')
                 .select('*')
@@ -589,6 +582,8 @@
 
         async function descargarExcel() {
             const cursoActual = obtenerCursoActual();
+            if (!cursoActual) return;
+
             const { data, error } = await _supabase
                 .from('Estudiantes')
                 .select('*')
