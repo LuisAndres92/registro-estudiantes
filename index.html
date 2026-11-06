@@ -40,7 +40,7 @@
                 <p id="errorClave" class="text-red-500 text-xs mt-2 hidden">Contraseña incorrecta.</p>
             </div>
 
-            <!-- Panel Protegido (Oculto hasta poner contraseña) -->
+            <!-- Panel Protegido -->
             <div id="panelProtegido" class="hidden space-y-6 pt-2">
                 <div class="flex justify-between items-center border-b pb-3">
                     <h2 class="text-base font-bold text-slate-800">⚙️ Panel de Control y Configuración</h2>
@@ -289,6 +289,18 @@
                 await cargarConfiguracionNube(cursoActual);
                 await cargarNombresComboBoxNube(cursoActual);
                 await cargarMuroMensajes(cursoActual);
+                
+                // ESCUCHAR CAMBIOS EN TIEMPO REAL PARA ESTUDIANTES Y MENSAJES
+                _supabase
+                    .channel('cambios-en-vivo')
+                    .on('postgres_changes', { event: '*', schema: 'public', table: 'Estudiantes', filter: `curso_id=eq.${cursoActual}` }, payload => {
+                        actualizarTabla();
+                    })
+                    .on('postgres_changes', { event: '*', schema: 'public', table: 'MensajesDespedida', filter: `curso_id=eq.${cursoActual}` }, payload => {
+                        cargarMuroMensajes(cursoActual);
+                    })
+                    .subscribe();
+
             } else {
                 document.getElementById('tituloInstitucion').textContent = "Portal General de Registro";
                 document.getElementById('subtituloCurso').textContent = "Por favor, ingresa mediante el enlace personalizado asignado a tu institución.";
@@ -307,7 +319,6 @@
             }
         });
 
-        // Funciones para abrir y cerrar el modal flotante
         function abrirModalInstructor() {
             document.getElementById('modalInstructor').classList.remove('hidden');
             document.getElementById('modalInstructor').classList.add('flex');
