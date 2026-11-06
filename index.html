@@ -139,13 +139,12 @@
 
                 <hr class="border-blue-200">
 
-                <!-- APARTADO DE DESPEDIDA Y GRADO (Con Editor de Texto Enriquecido) -->
+                <!-- APARTADO DE DESPEDIDA Y GRADO -->
                 <div class="bg-amber-50 border border-amber-200 p-3 rounded-lg space-y-3">
                     <h4 class="font-bold text-amber-900 text-xs">🎓 Configuración de Despedida y Grado</h4>
                     
                     <div>
                         <label class="block font-semibold text-slate-700 mb-1 text-xs">Mensaje Emotivo / Agradecimientos:</label>
-                        <!-- Contenedor del Editor Quill con barra de herramientas -->
                         <div id="editorQuill" class="bg-white h-36 rounded-b-lg"></div>
                     </div>
 
@@ -214,11 +213,12 @@
             if (cursoUrl) {
                 return cursoUrl.trim().toLowerCase();
             }
-            return null;
+            // Si no viene en la URL, revisamos si hay uno guardado en localStorage
+            return localStorage.getItem('curso_id_activo') || null;
         }
 
         window.addEventListener('DOMContentLoaded', async () => {
-            // Inicializar el editor de texto enriquecido Quill
+            // Inicializar el editor Quill
             quill = new Quill('#editorQuill', {
                 theme: 'snow',
                 modules: {
@@ -231,9 +231,10 @@
                 }
             });
 
-            const cursoActual = obtenerCursoActual();
+            let cursoActual = obtenerCursoActual();
             
             if (cursoActual) {
+                localStorage.setItem('curso_id_activo', cursoActual);
                 await cargarConfiguracionNube(cursoActual);
                 await cargarNombresComboBoxNube(cursoActual);
             } else {
@@ -286,6 +287,10 @@
                     
                     lanzarBengalas();
                 }
+            } else {
+                document.getElementById('tituloInstitucion').textContent = `Curso: ${cursoId}`;
+                document.getElementById('subtituloCurso').textContent = "Configura el título y el logo desde el panel de abajo.";
+                document.getElementById('inputCursoId').value = cursoId;
             }
         }
 
@@ -364,6 +369,7 @@
             if (error) {
                 alert("Error al guardar la despedida: " + error.message);
             } else {
+                localStorage.setItem('curso_id_activo', cursoId);
                 alert("¡Mensaje de despedida y estado guardados con éxito en la nube!");
                 window.location.href = `?curso=${cursoId}`;
             }
@@ -432,11 +438,13 @@
                 alert("Selecciona un curso válido de la lista.");
                 return;
             }
+            localStorage.setItem('curso_id_activo', selectVal);
             window.location.href = `?curso=${selectVal}`;
         }
 
         function nuevoCurso() {
             if (confirm("¿Deseas limpiar los campos para configurar un nuevo curso?")) {
+                localStorage.removeItem('curso_id_activo');
                 document.getElementById('selectCursosExistentes').value = 'nuevo';
                 document.getElementById('inputCursoId').value = "";
                 document.getElementById('inputTitulo').value = "";
@@ -491,6 +499,7 @@
             if (errorUpsert) {
                 alert("Error al guardar: " + errorUpsert.message);
             } else {
+                localStorage.setItem('curso_id_activo', nuevoCursoId);
                 alert("¡Configuración guardada con éxito!");
                 window.location.href = `?curso=${nuevoCursoId}`;
             }
@@ -545,6 +554,7 @@
                 if (error) {
                     alert("Error al guardar nombres: " + error.message);
                 } else {
+                    localStorage.setItem('curso_id_activo', inputCursoField);
                     alert(`¡Se sincronizaron ${listaNombres.length} nombres!`);
                     window.location.href = `?curso=${inputCursoField}`;
                 }
