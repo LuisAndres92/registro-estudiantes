@@ -159,20 +159,28 @@
 
         const CONTRASENA_SECRETA = "profe123"; 
 
+        // Detectar curso por parámetro URL (?curso=...) o dejar neutro si no existe
         function obtenerCursoActual() {
             const urlParams = new URLSearchParams(window.location.search);
             const cursoUrl = urlParams.get('curso');
             
             if (cursoUrl) {
-                localStorage.setItem('curso_id_activo', cursoUrl.trim().toLowerCase());
-                return cursoUrl.trim().toLowerCase();
+                const cursoLimpio = cursoUrl.trim().toLowerCase();
+                localStorage.setItem('curso_id_activo', cursoLimpio);
+                return cursoLimpio;
             }
-            return localStorage.getItem('curso_id_activo') || 'juanmejia2026';
+            return localStorage.getItem('curso_id_activo') || '';
         }
 
         window.addEventListener('DOMContentLoaded', async () => {
-            await cargarConfiguracionNube();
-            await cargarNombresComboBoxNube();
+            const cursoActual = obtenerCursoActual();
+            if (cursoActual) {
+                await cargarConfiguracionNube();
+                await cargarNombresComboBoxNube();
+            } else {
+                document.getElementById('tituloInstitucion').textContent = "Portal General de Registro";
+                document.getElementById('subtituloCurso').textContent = "Por favor ingresa a través del enlace asignado a tu institución o curso.";
+            }
 
             if (sessionStorage.getItem('instructor_activo') === 'true') {
                 document.getElementById('loginInstructor').classList.add('hidden');
@@ -184,6 +192,8 @@
 
         async function cargarConfiguracionNube() {
             const cursoId = obtenerCursoActual();
+            if (!cursoId) return;
+
             const { data } = await _supabase
                 .from('Configuracion')
                 .select('*')
@@ -200,8 +210,6 @@
                 if (data.logo_url) {
                     imgEl.src = data.logo_url;
                     imgEl.classList.remove('hidden');
-                    
-                    // Asignar dinámicamente el escudo como icono de la pestaña (favicon)
                     document.getElementById('faviconPestaña').href = data.logo_url;
                 } else {
                     imgEl.classList.add('hidden');
@@ -215,6 +223,8 @@
 
         async function cargarNombresComboBoxNube() {
             const cursoId = obtenerCursoActual();
+            if (!cursoId) return;
+
             const { data } = await _supabase
                 .from('Configuracion')
                 .select('nombres')
