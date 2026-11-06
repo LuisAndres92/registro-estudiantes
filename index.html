@@ -145,7 +145,6 @@
                         <label class="block text-slate-600 text-xs">O subir un escudo nuevo desde tu dispositivo:</label>
                         <input type="file" id="inputLogoFile" accept="image/*" class="text-xs text-slate-600">
                     </div>
-                    <!-- Campo oculto para almacenar la URL del logo seleccionada -->
                     <input type="hidden" id="inputLogoUrlOculto" value="">
                 </div>
 
@@ -184,10 +183,14 @@
                 </div>
             </div>
 
-            <!-- Listado y Exportación -->
+            <!-- Listado y Exportación (Con Contador en Vivo) -->
             <div>
                 <div class="flex justify-between items-center mb-3">
-                    <h3 class="text-sm font-bold text-slate-800">Estudiantes Registrados (Nube)</h3>
+                    <div class="flex items-center gap-2">
+                        <h3 class="text-sm font-bold text-slate-800">Estudiantes Registrados (Nube)</h3>
+                        <!-- Etiqueta de conteo total en tiempo real -->
+                        <span id="contadorRegistros" class="bg-blue-600 text-white text-xs px-2.5 py-0.5 rounded-full font-bold">0</span>
+                    </div>
                     <div class="flex gap-2">
                         <button onclick="descargarExcel()" class="bg-emerald-600 text-white font-medium px-3 py-1.5 rounded-lg hover:bg-emerald-700 transition text-xs">📥 Descargar Excel Consolidado</button>
                         <button onclick="cerrarPanel()" class="bg-red-600 text-white font-medium px-3 py-1.5 rounded-lg hover:bg-red-700 transition text-xs">Bloquear</button>
@@ -326,7 +329,6 @@
             }
         }
 
-        // Llenar el ComboBox agrupado por TÍTULO DE LA INSTITUCIÓN (Colegio) en lugar del ID del curso
         async function poblarComboBoxEscudosColegios() {
             const selectEscudos = document.getElementById('selectEscudosColegios');
             selectEscudos.innerHTML = '<option value="">-- Seleccionar colegio existente --</option>';
@@ -350,7 +352,7 @@
         function usarEscudoExistente(url) {
             if (url) {
                 document.getElementById('inputLogoUrlOculto').value = url;
-                document.getElementById('inputLogoFile').value = ""; // Limpiar input file
+                document.getElementById('inputLogoFile').value = ""; 
             }
         }
 
@@ -714,7 +716,13 @@
             const tbody = document.getElementById('cuerpoTabla');
             tbody.innerHTML = "";
             
-            if (error || !data) return;
+            if (error || !data) {
+                document.getElementById('contadorRegistros').textContent = "0";
+                return;
+            }
+
+            // Actualizar el contador numérico en tiempo real
+            document.getElementById('contadorRegistros').textContent = data.length;
 
             data.forEach(item => {
                 let tr = document.createElement('tr');
