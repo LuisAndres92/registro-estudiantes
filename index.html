@@ -4,6 +4,8 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Portal de Registro Institucional</title>
+    <!-- Favicon dinámico predeterminado -->
+    <link id="faviconPestaña" rel="icon" type="image/png" href="">
     <!-- Librerías de Excel, Tailwind y Supabase -->
     <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
     <script src="https://cdn.tailwindcss.com"></script>
@@ -198,6 +200,9 @@
                 if (data.logo_url) {
                     imgEl.src = data.logo_url;
                     imgEl.classList.remove('hidden');
+                    
+                    // Asignar dinámicamente el escudo como icono de la pestaña (favicon)
+                    document.getElementById('faviconPestaña').href = data.logo_url;
                 } else {
                     imgEl.classList.add('hidden');
                 }
@@ -208,7 +213,6 @@
             }
         }
 
-        // Función robusta mejorada para leer los nombres desde Supabase (sea objeto JSON o Array)
         async function cargarNombresComboBoxNube() {
             const cursoId = obtenerCursoActual();
             const { data } = await _supabase
