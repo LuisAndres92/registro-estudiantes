@@ -169,6 +169,19 @@
         </div>
     </div>
 
+    <!-- MODAL PARA VER LA LISTA COMPLETA DE LIKES -->
+    <div id="modalListaLikes" class="fixed inset-0 bg-black/60 hidden items-center justify-center z-50 p-4" onclick="cerrarModalLikes()">
+        <div class="bg-white w-full max-w-md rounded-2xl shadow-2xl p-6 relative space-y-4" onclick="event.stopPropagation()">
+            <div class="flex justify-between items-center border-b pb-2">
+                <h3 class="font-bold text-slate-800 text-sm flex items-center gap-1.5">❤️ Personas a las que les gustó</h3>
+                <button onclick="cerrarModalLikes()" class="text-slate-400 hover:text-slate-700 font-bold text-lg">✕</button>
+            </div>
+            <div id="listaCompletaLikesModal" class="space-y-2 max-h-60 overflow-y-auto text-xs text-slate-700">
+                <!-- Se llena dinámicamente -->
+            </div>
+        </div>
+    </div>
+
     <!-- CONTENEDOR PRINCIPAL DE LA PÁGINA -->
     <div class="max-w-3xl mx-auto bg-white rounded-xl shadow-md overflow-hidden p-6 sm:p-8">
         
@@ -355,6 +368,31 @@
             document.getElementById('modalZoomFoto').classList.add('hidden');
         }
 
+        function abrirModalLikes(nombresJson) {
+            let nombres = JSON.parse(decodeURIComponent(nombresJson));
+            let contenedor = document.getElementById('listaCompletaLikesModal');
+            contenedor.innerHTML = "";
+
+            if (nombres.length === 0) {
+                contenedor.innerHTML = `<p class="text-slate-500 text-center py-2">Aún no hay likes en este mensaje.</p>`;
+            } else {
+                nombres.forEach(nombre => {
+                    let item = document.createElement('div');
+                    item.className = "flex items-center gap-2 p-2 bg-slate-50 rounded-lg border border-slate-100 font-medium text-slate-800";
+                    item.innerHTML = `<span>❤️</span> <span>${nombre}</span>`;
+                    contenedor.appendChild(item);
+                });
+            }
+
+            document.getElementById('modalListaLikes').classList.remove('hidden');
+            document.getElementById('modalListaLikes').classList.add('flex');
+        }
+
+        function cerrarModalLikes() {
+            document.getElementById('modalListaLikes').classList.remove('flex');
+            document.getElementById('modalListaLikes').classList.add('hidden');
+        }
+
         async function cargarConfiguracionNube(cursoId) {
             const { data } = await _supabase
                 .from('Configuracion')
@@ -364,7 +402,7 @@
 
             if (data) {
                 document.getElementById('tituloInstitucion').textContent = data.titulo || "Portal de Registro";
-                document.getElementById('subtituloCurso').textContent = `SENA - Ficha: ${cursoId}`;
+                document.getElementById('subtituloCurso').textContent = `Curso / Ficha activa: ${cursoId}`;
                 document.getElementById('inputCursoId').value = cursoId;
 
                 const imgEl = document.getElementById('logoInstitucion');
@@ -450,8 +488,18 @@
                     `<div class="w-12 h-12 rounded-full bg-indigo-100 text-indigo-700 flex items-center justify-center font-bold shrink-0 text-sm">🎓</div>`;
 
                 let likesMensaje = reacciones ? reacciones.filter(r => r.mensaje_id === item.id) : [];
+                
+                // ORDENAR LOS LIKES: Tu nombre (PROFE LUIS CATAÑO) irá SIEMPRE de primero si está presente
+                likesMensaje.sort((a, b) => {
+                    if (a.nombre_estudiante.includes("PROFE LUIS CATAÑO")) return -1;
+                    if (b.nombre_estudiante.includes("PROFE LUIS CATAÑO")) return 1;
+                    return a.nombre_estudiante.localeCompare(b.nombre_estudiante);
+                });
+
                 let totalLikes = likesMensaje.length;
-                let nombresLikes = likesMensaje.map(r => r.nombre_estudiante).join(', ');
+                let listaNombres = likesMensaje.map(r => r.nombre_estudiante);
+                let nombresTextoResumido = listaNombres.join(', ');
+                let nombresJsonEscapado = encodeURIComponent(JSON.stringify(listaNombres));
 
                 div.innerHTML = `
                     ${fotoHtml}
@@ -462,14 +510,17 @@
                         </div>
                         <p class="text-slate-700 whitespace-pre-line break-words">${item.mensaje}</p>
 
-                        <!-- BARRA DE LIKES (CORAZÓN) -->
-                        <div class="flex items-center gap-2 pt-2 border-t border-slate-100">
-                            <button onclick="darLikeMensaje('${item.id}')" class="flex items-center gap-1.5 bg-rose-50 hover:bg-rose-100 border border-rose-200 px-3 py-1 rounded-full text-xs transition text-rose-700 font-bold shrink-0">
-                                <span>❤️</span> <span>${totalLikes}</span>
-                            </button>
-                            <span class="text-[11px] text-slate-500 truncate" title="${nombresLikes}">
-                                ${totalLikes > 0 ? 'Le gustó a: ' + nombresLikes : 'Sé el primero en dar Me Gusta'}
-                            </span>
+                        <!-- BARRA DE LIKES (CORAZÓN Y LISTADO) -->
+                        <div class="flex items-center justify-between pt-2 border-t border-slate-100 gap-2">
+                            <div class="flex items-center gap-2">
+                                <button onclick="darLikeMensaje('${item.id}')" class="flex items-center gap-1.5 bg-rose-50 hover:bg-rose-100 border border-rose-200 px-3 py-1 rounded-full text-xs transition text-rose-700 font-bold shrink-0">
+                                    <span>❤️</span> <span>${totalLikes}</span>
+                                </button>
+                                <span class="text-[11px] text-slate-500 truncate max-w-[200px]" title="${nombresTextoResumido}">
+                                    ${totalLikes > 0 ? 'Le gustó a: ' + nombresTextoResumido : 'Sé el primero en dar Me Gusta'}
+                                </span>
+                            </div>
+                            ${totalLikes > 0 ? `<button onclick="abrirModalLikes('${nombresJsonEscapado}')" class="text-[11px] font-bold text-indigo-600 hover:underline shrink-0">Ver todos</button>` : ''}
                         </div>
                     </div>
                 `;
