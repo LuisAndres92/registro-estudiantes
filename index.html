@@ -242,15 +242,15 @@
                 <div id="textoDespedidaVista" class="text-slate-100 text-base leading-relaxed bg-black/20 p-5 rounded-xl text-left"></div>
             </div>
 
-            <!-- CARRUSEL DE FOTOS GRUPALES -->
+            <!-- CARRUSEL TÁCTIL DE FOTOS GRUPALES -->
             <div id="contenedorCarrusel" class="hidden space-y-2">
-                <h3 class="text-sm font-bold text-slate-700">📸 Nuestros Grandes Momentos Juntos</h3>
-                <div class="relative w-full h-80 sm:h-96 bg-slate-900 rounded-xl overflow-hidden shadow-lg border-4 border-white flex items-center justify-center group">
-                    <img id="imagenCarrusel" src="" alt="Foto Grupal" class="w-full h-full object-cover cursor-pointer hover:scale-105 transition duration-500" onclick="ampliarFotoActualCarrusel()" title="Haz clic para ver en grande">
+                <h3 class="text-sm font-bold text-slate-700">📸 Nuestros Grandes Momentos Juntos (Desliza o usa las flechas)</h3>
+                <div id="zonaCarrusel" class="relative w-full h-80 sm:h-96 bg-slate-900 rounded-xl overflow-hidden shadow-lg border-4 border-white flex items-center justify-center group select-none">
+                    <img id="imagenCarrusel" src="" alt="Foto Grupal" class="w-full h-full object-cover cursor-pointer hover:scale-105 transition duration-300" onclick="ampliarFotoActualCarrusel()" title="Haz clic para ver en grande">
                     
-                    <!-- Botones de Navegación del Carrusel -->
-                    <button onclick="cambiarFotoCarrusel(-1)" class="absolute left-3 bg-black/50 hover:bg-black/80 text-white p-2 rounded-full font-bold text-sm transition">❮</button>
-                    <button onclick="cambiarFotoCarrusel(1)" class="absolute right-3 bg-black/50 hover:bg-black/80 text-white p-2 rounded-full font-bold text-sm transition">❯</button>
+                    <!-- Botones de Navegación visibles -->
+                    <button onclick="cambiarFotoCarrusel(-1)" class="absolute left-3 bg-black/60 hover:bg-black/90 text-white p-3 rounded-full font-bold text-base transition shadow-md">❮</button>
+                    <button onclick="cambiarFotoCarrusel(1)" class="absolute right-3 bg-black/60 hover:bg-black/90 text-white p-3 rounded-full font-bold text-base transition shadow-md">❯</button>
                     
                     <!-- Indicadores (Puntitos) -->
                     <div id="indicadoresCarrusel" class="absolute bottom-3 flex gap-2"></div>
@@ -295,10 +295,11 @@
         const CONTRASENA_SECRETA = "profe123"; 
         let quill;
         
-        // Variables globales para el Carrusel
+        // Variables globales para el Carrusel Táctil
         let listaFotosCarrusel = [];
         let indiceFotoActual = 0;
-        let intervaloCarrusel = null;
+        let touchStartX = 0;
+        let touchEndX = 0;
 
         function obtenerCursoActual() {
             const urlParams = new URLSearchParams(window.location.search);
@@ -358,6 +359,19 @@
                     await actualizarTabla();
                 }
             }
+
+            // Inicializar eventos táctiles (Swipe) para el carrusel
+            const zona = document.getElementById('zonaCarrusel');
+            if (zona) {
+                zona.addEventListener('touchstart', e => {
+                    touchStartX = e.changedTouches[0].screenX;
+                }, {passive: true});
+
+                zona.addEventListener('touchend', e => {
+                    touchEndX = e.changedTouches[0].screenX;
+                    manejarDeslizamientoTacto();
+                }, {passive: true});
+            }
         });
 
         function abrirModalInstructor() {
@@ -381,7 +395,7 @@
             document.getElementById('modalZoomFoto').classList.add('hidden');
         }
 
-        // Lógica del Carrusel Automático e Interactivo
+        // Lógica del Carrusel Manual y Táctil
         function iniciarCarrusel(fotos) {
             listaFotosCarrusel = fotos.filter(f => f && f.trim() !== "");
             if (listaFotosCarrusel.length === 0) {
@@ -392,19 +406,12 @@
             document.getElementById('contenedorCarrusel').classList.remove('hidden');
             indiceFotoActual = 0;
             actualizarVistaCarrusel();
-
-            // Intervalo automático cada 2 segundos
-            if (intervaloCarrusel) clearInterval(intervaloCarrusel);
-            intervaloCarrusel = setInterval(() => {
-                cambiarFotoCarrusel(1);
-            }, 2000);
         }
 
         function actualizarVistaCarrusel() {
             if (listaFotosCarrusel.length === 0) return;
             document.getElementById('imagenCarrusel').src = listaFotosCarrusel[indiceFotoActual];
             
-            // Actualizar indicadores (puntos)
             let indicadoresHtml = "";
             listaFotosCarrusel.forEach((_, idx) => {
                 let activo = idx === indiceFotoActual ? "bg-white w-4" : "bg-white/50 w-2";
@@ -423,6 +430,18 @@
         function irFotoCarrusel(idx) {
             indiceFotoActual = idx;
             actualizarVistaCarrusel();
+        }
+
+        function manejarDeslizamientoTacto() {
+            let umbral = 50; // Mínimo de pixeles para considerarse un deslizamiento
+            if (touchEndX < touchStartX - umbral) {
+                // Deslizó hacia la izquierda -> Siguiente foto
+                cambiarFotoCarrusel(1);
+            }
+            if (touchEndX > touchStartX + umbral) {
+                // Deslizó hacia la derecha -> Foto anterior
+                cambiarFotoCarrusel(-1);
+            }
         }
 
         function ampliarFotoActualCarrusel() {
@@ -482,7 +501,6 @@
                     document.getElementById('seccionDespedida').classList.remove('hidden');
                     document.getElementById('textoDespedidaVista').innerHTML = data.mensaje_despedida || "¡Gracias por todo y felicitaciones por su grado!";
                     
-                    // Manejar fotos grupales (soporta array o string único)
                     let fotosGrupales = [];
                     if (data.foto_despedida_url) {
                         try {
@@ -556,7 +574,6 @@
 
                 let likesMensaje = reacciones ? reacciones.filter(r => r.mensaje_id === item.id) : [];
                 
-                // ORDENAR: Tu like (PROFE LUIS CATAÑO) va SIEMPRE de primero
                 likesMensaje.sort((a, b) => {
                     if (a.nombre_estudiante.includes("PROFE LUIS CATAÑO")) return -1;
                     if (b.nombre_estudiante.includes("PROFE LUIS CATAÑO")) return 1;
@@ -747,7 +764,6 @@
                 }
             }
 
-            // Subir las nuevas fotos si seleccionaron varias
             if (fotoFiles && fotoFiles.length > 0) {
                 for (let i = 0; i < fotoFiles.length; i++) {
                     let file = fotoFiles[i];
@@ -766,7 +782,7 @@
                 logo_url: previo ? previo.logo_url : "",
                 nombres: previo ? previo.nombres : [],
                 mensaje_despedida: mensajeHtml,
-                foto_despedida_url: JSON.stringify(urlsFotosGrupales), // Guardamos como lista en formato JSON
+                foto_despedida_url: JSON.stringify(urlsFotosGrupales),
                 modo_despedida: modoDespedida,
                 permitir_muro: permitirMuro
             }, { onConflict: 'curso_id' });
