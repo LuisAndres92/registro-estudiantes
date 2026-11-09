@@ -394,8 +394,12 @@
         }
 
         function iniciarCarrusel(fotos) {
-            // Filtrar elementos vacíos, nulos o cadenas puras de espacios
-            listaFotosCarrusel = fotos.filter(f => f && typeof f === 'string' && f.trim() !== "" && f !== "[]" && f !== '""');
+            // Filtrar estrictamente solo URLs válidas que tengan texto real
+            listaFotosCarrusel = fotos.filter(f => {
+                if (!f || typeof f !== 'string') return false;
+                let limpio = f.trim();
+                return limpio !== "" && limpio !== "[]" && limpio !== '""' && limpio.startsWith('http');
+            });
             
             const contenedorCarrusel = document.getElementById('contenedorCarrusel');
             if (listaFotosCarrusel.length === 0) {
@@ -763,9 +767,13 @@
             if (previo && previo.foto_despedida_url) {
                 try {
                     let parsed = JSON.parse(previo.foto_despedida_url);
-                    if (Array.isArray(parsed)) urlsFotosGrupales = parsed;
+                    if (Array.isArray(parsed)) {
+                        urlsFotosGrupales = parsed.filter(f => f && typeof f === 'string' && f.trim() !== "" && f.startsWith('http'));
+                    }
                 } catch(e) {
-                    if (previo.foto_despedida_url.trim() !== "") urlsFotosGrupales = [previo.foto_despedida_url];
+                    if (previo.foto_despedida_url.trim() !== "" && previo.foto_despedida_url.startsWith('http')) {
+                        urlsFotosGrupales = [previo.foto_despedida_url];
+                    }
                 }
             }
 
@@ -1166,7 +1174,7 @@
                 const cursoActual = obtenerCursoActual();
                 if (cursoActual) await actualizarTabla();
             } else {
-                document.getElementById('errorClave').classList.remove('hidden');
+                document.getElementById('errorClave').classList.add('hidden');
             }
         }
 
