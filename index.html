@@ -67,11 +67,11 @@
                     <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
                         <div>
                             <label class="block font-semibold text-slate-700 mb-1">ID del Curso / Ficha (Sin espacios):</label>
-                            <input type="text" id="inputCursoId" class="border border-slate-300 rounded p-2 w-full bg-white font-bold text-blue-800" placeholder="ej. ficha_3172157">
+                            <input type="text" id="inputCursoId" class="border border-slate-300 rounded p-2 w-full bg-white font-bold text-blue-800" placeholder="ej. ficha_3171300">
                         </div>
                         <div>
                             <label class="block font-semibold text-slate-700 mb-1">Título de la Institución / Colegio:</label>
-                            <input type="text" id="inputTitulo" class="border border-slate-300 rounded p-2 w-full bg-white" placeholder="Ej. SENA - Ficha 3172157">
+                            <input type="text" id="inputTitulo" class="border border-slate-300 rounded p-2 w-full bg-white" placeholder="Ej. INSTPECAM - Ficha 3171300">
                         </div>
                     </div>
 
@@ -104,8 +104,8 @@
                         </div>
 
                         <div>
-                            <label class="block font-semibold text-slate-700 mb-1 text-xs">📸 Subir Banner Grupal del Recuerdo (Opcional):</label>
-                            <input type="file" id="inputFotoGrupal" accept="image/*" class="text-xs text-slate-600 mb-1">
+                            <label class="block font-semibold text-slate-700 mb-1 text-xs">📸 Subir Fotos Grupales del Recuerdo (Puedes seleccionar varias):</label>
+                            <input type="file" id="inputFotosGrupales" accept="image/*" multiple class="text-xs text-slate-600 mb-1">
                         </div>
 
                         <div class="space-y-2 pt-2 border-t border-amber-200">
@@ -161,7 +161,7 @@
         </div>
     </div>
 
-    <!-- MODAL PARA VER FOTO EN GRANDE (LIGHTBOX) -->
+    <!-- MODAL PARA VER FOTO EN GRANDE (ZOOM) -->
     <div id="modalZoomFoto" class="fixed inset-0 bg-black/80 hidden items-center justify-center z-50 p-4 cursor-pointer" onclick="cerrarZoomFoto()">
         <div class="relative max-w-4xl w-full flex items-center justify-center" onclick="event.stopPropagation()">
             <button onclick="cerrarZoomFoto()" class="absolute -top-10 right-0 text-white font-bold text-2xl hover:text-gray-300">✕</button>
@@ -176,9 +176,7 @@
                 <h3 class="font-bold text-slate-800 text-sm flex items-center gap-1.5">❤️ Personas a las que les gustó</h3>
                 <button onclick="cerrarModalLikes()" class="text-slate-400 hover:text-slate-700 font-bold text-lg">✕</button>
             </div>
-            <div id="listaCompletaLikesModal" class="space-y-2 max-h-60 overflow-y-auto text-xs text-slate-700">
-                <!-- Se llena dinámicamente -->
-            </div>
+            <div id="listaCompletaLikesModal" class="space-y-2 max-h-60 overflow-y-auto text-xs text-slate-700"></div>
         </div>
     </div>
 
@@ -244,9 +242,19 @@
                 <div id="textoDespedidaVista" class="text-slate-100 text-base leading-relaxed bg-black/20 p-5 rounded-xl text-left"></div>
             </div>
 
-            <div id="contenedorFotoGrupal" class="hidden">
-                <h3 class="text-sm font-bold text-slate-700 mb-2">📸 Nuestro Gran Recuerdo Juntos</h3>
-                <img id="fotoGrupalVista" src="" alt="Foto Grupal" class="w-full max-h-96 object-cover rounded-xl shadow-lg border-4 border-white">
+            <!-- CARRUSEL DE FOTOS GRUPALES -->
+            <div id="contenedorCarrusel" class="hidden space-y-2">
+                <h3 class="text-sm font-bold text-slate-700">📸 Nuestros Grandes Momentos Juntos</h3>
+                <div class="relative w-full h-80 sm:h-96 bg-slate-900 rounded-xl overflow-hidden shadow-lg border-4 border-white flex items-center justify-center group">
+                    <img id="imagenCarrusel" src="" alt="Foto Grupal" class="w-full h-full object-cover cursor-pointer hover:scale-105 transition duration-500" onclick="ampliarFotoActualCarrusel()" title="Haz clic para ver en grande">
+                    
+                    <!-- Botones de Navegación del Carrusel -->
+                    <button onclick="cambiarFotoCarrusel(-1)" class="absolute left-3 bg-black/50 hover:bg-black/80 text-white p-2 rounded-full font-bold text-sm transition">❮</button>
+                    <button onclick="cambiarFotoCarrusel(1)" class="absolute right-3 bg-black/50 hover:bg-black/80 text-white p-2 rounded-full font-bold text-sm transition">❯</button>
+                    
+                    <!-- Indicadores (Puntitos) -->
+                    <div id="indicadoresCarrusel" class="absolute bottom-3 flex gap-2"></div>
+                </div>
             </div>
 
             <!-- MURO DE MENSAJES Y ANUARIO -->
@@ -286,6 +294,11 @@
 
         const CONTRASENA_SECRETA = "profe123"; 
         let quill;
+        
+        // Variables globales para el Carrusel
+        let listaFotosCarrusel = [];
+        let indiceFotoActual = 0;
+        let intervaloCarrusel = null;
 
         function obtenerCursoActual() {
             const urlParams = new URLSearchParams(window.location.search);
@@ -368,6 +381,56 @@
             document.getElementById('modalZoomFoto').classList.add('hidden');
         }
 
+        // Lógica del Carrusel Automático e Interactivo
+        function iniciarCarrusel(fotos) {
+            listaFotosCarrusel = fotos.filter(f => f && f.trim() !== "");
+            if (listaFotosCarrusel.length === 0) {
+                document.getElementById('contenedorCarrusel').classList.add('hidden');
+                return;
+            }
+
+            document.getElementById('contenedorCarrusel').classList.remove('hidden');
+            indiceFotoActual = 0;
+            actualizarVistaCarrusel();
+
+            // Intervalo automático cada 2 segundos
+            if (intervaloCarrusel) clearInterval(intervaloCarrusel);
+            intervaloCarrusel = setInterval(() => {
+                cambiarFotoCarrusel(1);
+            }, 2000);
+        }
+
+        function actualizarVistaCarrusel() {
+            if (listaFotosCarrusel.length === 0) return;
+            document.getElementById('imagenCarrusel').src = listaFotosCarrusel[indiceFotoActual];
+            
+            // Actualizar indicadores (puntos)
+            let indicadoresHtml = "";
+            listaFotosCarrusel.forEach((_, idx) => {
+                let activo = idx === indiceFotoActual ? "bg-white w-4" : "bg-white/50 w-2";
+                indicadoresHtml += `<div onclick="irFotoCarrusel(${idx})" class="${activo} h-2 rounded-full transition-all duration-300 cursor-pointer"></div>`;
+            });
+            document.getElementById('indicadoresCarrusel').innerHTML = indicadoresHtml;
+        }
+
+        function cambiarFotoCarrusel(direccion) {
+            indiceFotoActual += direccion;
+            if (indiceFotoActual >= listaFotosCarrusel.length) indiceFotoActual = 0;
+            if (indiceFotoActual < 0) indiceFotoActual = listaFotosCarrusel.length - 1;
+            actualizarVistaCarrusel();
+        }
+
+        function irFotoCarrusel(idx) {
+            indiceFotoActual = idx;
+            actualizarVistaCarrusel();
+        }
+
+        function ampliarFotoActualCarrusel() {
+            if (listaFotosCarrusel.length > 0) {
+                abrirZoomFoto(listaFotosCarrusel[indiceFotoActual]);
+            }
+        }
+
         function abrirModalLikes(nombresJson) {
             let nombres = JSON.parse(decodeURIComponent(nombresJson));
             let contenedor = document.getElementById('listaCompletaLikesModal');
@@ -419,12 +482,16 @@
                     document.getElementById('seccionDespedida').classList.remove('hidden');
                     document.getElementById('textoDespedidaVista').innerHTML = data.mensaje_despedida || "¡Gracias por todo y felicitaciones por su grado!";
                     
-                    if (data.foto_despedida_url && data.foto_despedida_url.trim() !== "") {
-                        document.getElementById('fotoGrupalVista').src = data.foto_despedida_url;
-                        document.getElementById('contenedorFotoGrupal').classList.remove('hidden');
-                    } else {
-                        document.getElementById('contenedorFotoGrupal').classList.add('hidden');
+                    // Manejar fotos grupales (soporta array o string único)
+                    let fotosGrupales = [];
+                    if (data.foto_despedida_url) {
+                        try {
+                            fotosGrupales = JSON.parse(data.foto_despedida_url);
+                        } catch(e) {
+                            fotosGrupales = [data.foto_despedida_url];
+                        }
                     }
+                    iniciarCarrusel(fotosGrupales);
 
                     if (data.permitir_muro === false) {
                         document.getElementById('seccionFormMensaje').classList.add('hidden');
@@ -489,7 +556,7 @@
 
                 let likesMensaje = reacciones ? reacciones.filter(r => r.mensaje_id === item.id) : [];
                 
-                // ORDENAR LOS LIKES: Tu nombre (PROFE LUIS CATAÑO) irá SIEMPRE de primero si está presente
+                // ORDENAR: Tu like (PROFE LUIS CATAÑO) va SIEMPRE de primero
                 likesMensaje.sort((a, b) => {
                     if (a.nombre_estudiante.includes("PROFE LUIS CATAÑO")) return -1;
                     if (b.nombre_estudiante.includes("PROFE LUIS CATAÑO")) return 1;
@@ -510,7 +577,7 @@
                         </div>
                         <p class="text-slate-700 whitespace-pre-line break-words">${item.mensaje}</p>
 
-                        <!-- BARRA DE LIKES (CORAZÓN Y LISTADO) -->
+                        <!-- BARRA DE LIKES -->
                         <div class="flex items-center justify-between pt-2 border-t border-slate-100 gap-2">
                             <div class="flex items-center gap-2">
                                 <button onclick="darLikeMensaje('${item.id}')" class="flex items-center gap-1.5 bg-rose-50 hover:bg-rose-100 border border-rose-200 px-3 py-1 rounded-full text-xs transition text-rose-700 font-bold shrink-0">
@@ -662,23 +729,34 @@
             const mensajeHtml = quill ? quill.root.innerHTML : "";
             const modoDespedida = document.getElementById('inputModoDespedida').checked;
             const permitirMuro = document.getElementById('inputPermitirMuro').checked;
-            const fotoFile = document.getElementById('inputFotoGrupal').files[0];
+            const fotoFiles = document.getElementById('inputFotosGrupales').files;
 
             if (!cursoId) {
                 alert("Define un ID de curso o ficha primero.");
                 return;
             }
 
-            let fotoUrlFinal = "";
+            let urlsFotosGrupales = [];
             const { data: previo } = await _supabase.from('Configuracion').select('foto_despedida_url, titulo, logo_url, nombres').eq('curso_id', cursoId).maybeSingle();
-            if (previo && previo.foto_despedida_url) fotoUrlFinal = previo.foto_despedida_url;
+            
+            if (previo && previo.foto_despedida_url) {
+                try {
+                    urlsFotosGrupales = JSON.parse(previo.foto_despedida_url);
+                } catch(e) {
+                    urlsFotosGrupales = [previo.foto_despedida_url];
+                }
+            }
 
-            if (fotoFile) {
-                const fileName = `${cursoId}_despedida_${Date.now()}_${fotoFile.name}`;
-                const { error: errUpload } = await _supabase.storage.from('logos').upload(fileName, fotoFile);
-                if (!errUpload) {
-                    const { data: pubUrl } = _supabase.storage.from('logos').getPublicUrl(fileName);
-                    fotoUrlFinal = pubUrl.publicUrl;
+            // Subir las nuevas fotos si seleccionaron varias
+            if (fotoFiles && fotoFiles.length > 0) {
+                for (let i = 0; i < fotoFiles.length; i++) {
+                    let file = fotoFiles[i];
+                    const fileName = `${cursoId}_grupo_${Date.now()}_${i}_${file.name}`;
+                    const { error: errUpload } = await _supabase.storage.from('logos').upload(fileName, file);
+                    if (!errUpload) {
+                        const { data: pubUrl } = _supabase.storage.from('logos').getPublicUrl(fileName);
+                        urlsFotosGrupales.push(pubUrl.publicUrl);
+                    }
                 }
             }
 
@@ -688,7 +766,7 @@
                 logo_url: previo ? previo.logo_url : "",
                 nombres: previo ? previo.nombres : [],
                 mensaje_despedida: mensajeHtml,
-                foto_despedida_url: fotoUrlFinal,
+                foto_despedida_url: JSON.stringify(urlsFotosGrupales), // Guardamos como lista en formato JSON
                 modo_despedida: modoDespedida,
                 permitir_muro: permitirMuro
             }, { onConflict: 'curso_id' });
@@ -696,7 +774,7 @@
             if (error) {
                 alert("Error al guardar la despedida: " + error.message);
             } else {
-                alert("¡Configuración de despedida guardada con éxito!");
+                alert("¡Configuración de despedida y carrusel guardada con éxito!");
                 window.location.href = `?curso=${cursoId}`;
             }
         }
