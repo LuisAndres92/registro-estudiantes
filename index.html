@@ -295,7 +295,6 @@
         const CONTRASENA_SECRETA = "profe123"; 
         let quill;
         
-        // Variables globales para el Carrusel Táctil
         let listaFotosCarrusel = [];
         let indiceFotoActual = 0;
         let touchStartX = 0;
@@ -360,7 +359,6 @@
                 }
             }
 
-            // Inicializar eventos táctiles (Swipe) para el carrusel
             const zona = document.getElementById('zonaCarrusel');
             if (zona) {
                 zona.addEventListener('touchstart', e => {
@@ -395,15 +393,17 @@
             document.getElementById('modalZoomFoto').classList.add('hidden');
         }
 
-        // Lógica del Carrusel Manual y Táctil
         function iniciarCarrusel(fotos) {
-            listaFotosCarrusel = fotos.filter(f => f && f.trim() !== "");
+            // Filtrar elementos vacíos, nulos o cadenas puras de espacios
+            listaFotosCarrusel = fotos.filter(f => f && typeof f === 'string' && f.trim() !== "" && f !== "[]" && f !== '""');
+            
+            const contenedorCarrusel = document.getElementById('contenedorCarrusel');
             if (listaFotosCarrusel.length === 0) {
-                document.getElementById('contenedorCarrusel').classList.add('hidden');
+                contenedorCarrusel.classList.add('hidden');
                 return;
             }
 
-            document.getElementById('contenedorCarrusel').classList.remove('hidden');
+            contenedorCarrusel.classList.remove('hidden');
             indiceFotoActual = 0;
             actualizarVistaCarrusel();
         }
@@ -421,6 +421,7 @@
         }
 
         function cambiarFotoCarrusel(direccion) {
+            if (listaFotosCarrusel.length <= 1) return;
             indiceFotoActual += direccion;
             if (indiceFotoActual >= listaFotosCarrusel.length) indiceFotoActual = 0;
             if (indiceFotoActual < 0) indiceFotoActual = listaFotosCarrusel.length - 1;
@@ -433,13 +434,11 @@
         }
 
         function manejarDeslizamientoTacto() {
-            let umbral = 50; // Mínimo de pixeles para considerarse un deslizamiento
+            let umbral = 50;
             if (touchEndX < touchStartX - umbral) {
-                // Deslizó hacia la izquierda -> Siguiente foto
                 cambiarFotoCarrusel(1);
             }
             if (touchEndX > touchStartX + umbral) {
-                // Deslizó hacia la derecha -> Foto anterior
                 cambiarFotoCarrusel(-1);
             }
         }
@@ -504,7 +503,12 @@
                     let fotosGrupales = [];
                     if (data.foto_despedida_url) {
                         try {
-                            fotosGrupales = JSON.parse(data.foto_despedida_url);
+                            let parsed = JSON.parse(data.foto_despedida_url);
+                            if (Array.isArray(parsed)) {
+                                fotosGrupales = parsed;
+                            } else {
+                                fotosGrupales = [data.foto_despedida_url];
+                            }
                         } catch(e) {
                             fotosGrupales = [data.foto_despedida_url];
                         }
@@ -758,9 +762,10 @@
             
             if (previo && previo.foto_despedida_url) {
                 try {
-                    urlsFotosGrupales = JSON.parse(previo.foto_despedida_url);
+                    let parsed = JSON.parse(previo.foto_despedida_url);
+                    if (Array.isArray(parsed)) urlsFotosGrupales = parsed;
                 } catch(e) {
-                    urlsFotosGrupales = [previo.foto_despedida_url];
+                    if (previo.foto_despedida_url.trim() !== "") urlsFotosGrupales = [previo.foto_despedida_url];
                 }
             }
 
